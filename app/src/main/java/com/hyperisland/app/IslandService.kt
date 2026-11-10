@@ -12,7 +12,6 @@ import android.os.IBinder
 import android.provider.Settings
 import android.view.WindowManager
 
-/** سرویس پیش‌زمینه: نگهبان بقا + میزبان جایگزین (اگر دسترسی‌پذیری فعال نباشد). */
 class IslandService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -28,14 +27,14 @@ class IslandService : Service() {
 
     private fun startFg() {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        val ch = NotificationChannel("island", "جزیره هایپر", NotificationManager.IMPORTANCE_MIN)
+        val ch = NotificationChannel("island", "Hyper Island", NotificationManager.IMPORTANCE_MIN)
         ch.setShowBadge(false)
         nm.createNotificationChannel(ch)
         val pi = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val n = Notification.Builder(this, "island")
             .setSmallIcon(R.drawable.ic_island)
-            .setContentTitle("جزیره هایپر فعال است")
-            .setContentText("برای تنظیمات لمس کنید")
+            .setContentTitle("Hyper Island is running")
+            .setContentText("Tap to open settings")
             .setContentIntent(pi)
             .setOngoing(true)
             .build()

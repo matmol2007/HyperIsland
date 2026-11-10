@@ -21,7 +21,6 @@ fun dpF(v: Float): Float = v * Resources.getSystem().displayMetrics.density
 
 fun Int.withAlpha(a: Int): Int = (this and 0x00FFFFFF) or (a.coerceIn(0, 255) shl 24)
 
-/** رنگ‌های تیره روی زمینه‌ی مشکی خوانا نیستند؛ روشنشان می‌کنیم. */
 fun brighten(c: Int): Int {
     val hsv = FloatArray(3)
     Color.colorToHSV(c, hsv)
@@ -31,12 +30,7 @@ fun brighten(c: Int): Int {
 
 object Fa {
     fun digits(s: String, on: Boolean = true): String {
-        if (!on) return s
-        val sb = StringBuilder(s.length)
-        for (c in s) {
-            if (c in '0'..'9') sb.append('۰' + (c - '0')) else sb.append(c)
-        }
-        return sb.toString()
+        return s  // UI is English: keep Western digits
     }
 }
 
@@ -55,7 +49,6 @@ fun registerSys(ctx: Context, r: BroadcastReceiver, f: IntentFilter) {
 }
 
 object Launch {
-    /** ارسال PendingIntent (مثلاً باز کردن برنامه‌ی پیام‌رسان) با اجازه‌ی شروع Activity از پس‌زمینه. */
     fun send(ctx: Context, pi: PendingIntent?): Boolean {
         if (pi == null) return false
         return try {

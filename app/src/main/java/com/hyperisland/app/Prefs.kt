@@ -9,19 +9,14 @@ object Prefs {
 
     private val D: Map<String, Any> = mapOf(
         "enabled" to true,
-        // ابعاد و موقعیت
         "compactW" to 150, "compactH" to 34, "expandW" to 350,
         "radius" to 30, "yOff" to 4, "xOff" to 0, "scale" to 100,
-        // ظاهر
         "bg" to 0xFF000000.toInt(), "opacity" to 100,
         "accent" to 0xFF0A84FF.toInt(), "text" to 0xFFFFFFFF.toInt(),
-        "glow" to false, "dynAccent" to true, "layoutDir" to 0,
-        // انیمیشن
+        "glow" to false, "ambient" to true, "dynAccent" to true, "layoutDir" to 1,
         "animMs" to 480, "bounce" to 60,
-        // رفتار
-        "hideLand" to true, "haptic" to true, "faDigits" to true,
+        "hideLand" to true, "haptic" to true, "faDigits" to false,
         "msgSec" to 5, "evtSec" to 3, "popupTrack" to true, "hideMsgText" to false,
-        // قابلیت‌ها
         "fMusic" to true, "fCall" to true, "fMissed" to true, "fMsg" to true, "catMsg" to true,
         "fLive" to true, "fTimer" to true, "fNav" to true, "fAlarm" to true,
         "fCharge" to true, "fUnplug" to false, "fFull" to true, "fLow" to true, "lowPct" to 15,
@@ -65,7 +60,9 @@ object Prefs {
         e.apply()
     }
 
-    val presetNames = listOf("کلاسیک", "هایپر", "شیشه‌ای", "نئون", "مینیمال", "روشن")
+    val presetNames = listOf("Classic", "Hyper", "Glass", "Neon", "Minimal", "Light")
+    val presetBg = listOf(0xFF000000L, 0xFF000000L, 0xFF1C1C1EL, 0xFF0A0014L, 0xFF000000L, 0xFFF2F2F7L)
+    val presetAcc = listOf(0xFF0A84FFL, 0xFF30D158L, 0xFF64D2FFL, 0xFFBF5AF2L, 0xFFFFFFFFL, 0xFF0A84FFL)
 
     fun applyPreset(i: Int) {
         val e = prefs.edit()

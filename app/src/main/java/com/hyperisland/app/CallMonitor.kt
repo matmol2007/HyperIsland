@@ -46,7 +46,7 @@ class CallMonitor(private val ctx: Context) {
         } catch (e: Exception) { null }
     }
 
-    private fun display(): String = name ?: number ?: "شماره ناشناس"
+    private fun display(): String = name ?: number ?: "Unknown number"
 
     private fun handle(i: Intent) {
         if (!Prefs.bool("fCall")) return
@@ -75,7 +75,7 @@ class CallMonitor(private val ctx: Context) {
                 if (missed && Prefs.bool("fMissed")) {
                     val e = IslandEvent("missed", Kind.MESSAGE)
                     e.title = who
-                    e.subtitle = "تماس از دست رفته"
+                    e.subtitle = "Missed call"
                     e.iconRes = R.drawable.ic_call
                     e.accent = 0xFFFF453A.toInt()
                     e.priority = 35
@@ -96,7 +96,7 @@ class CallMonitor(private val ctx: Context) {
         cur = e
         e.title = display()
         e.ringing = ringing
-        e.subtitle = if (ringing) "تماس ورودی" else "در تماس"
+        e.subtitle = if (ringing) "Incoming call" else "On call"
         e.iconRes = R.drawable.ic_call
         e.accent = green
         e.sticky = true

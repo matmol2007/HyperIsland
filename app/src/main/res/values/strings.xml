@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">جزیره هایپر</string>
-    <string name="a11y_desc">نمایش جزیره‌ی پویا روی صفحه و ماندگاری بیشتر در پس‌زمینه. این سرویس هیچ متنی از صفحه‌ی شما نمی‌خواند.</string>
+    <string name="app_name">Hyper Island</string>
+    <string name="a11y_desc">Shows the Dynamic Island overlay and keeps it alive in the background. This service does not read any text from your screen.</string>
 </resources>

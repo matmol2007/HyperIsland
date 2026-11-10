@@ -5,10 +5,6 @@ import android.content.Intent
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 
-/**
- * میزبان اصلی جزیره. سیستم‌عامل خودش این سرویس را زنده نگه می‌دارد و بعد از
- * بسته شدن برنامه از لیست اخیر دوباره وصل می‌کند؛ ماندگارترین راه روی اندروید.
- */
 class IslandAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
