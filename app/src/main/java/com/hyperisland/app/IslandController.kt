@@ -1,5 +1,7 @@
 package com.hyperisland.app
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.SharedPreferences
@@ -12,8 +14,9 @@ import android.view.WindowManager
 import android.view.animation.LinearInterpolator
 
 /**
- * مغز جزیره: رویدادها را نگه می‌دارد، انتخاب می‌کند چه چیزی نمایش داده شود
- * و پنجره‌ی Overlay را با انیمیشن فنری تغییر اندازه می‌دهد.
+ * The brain: keeps events, decides what to show, and animates the pill.
+ * Performance: the overlay WINDOW is resized only twice per transition (start / end);
+ * every animation frame only moves the drawn pill inside IslandView (no layout, no IPC).
  */
 class IslandController(
     private val ctx: Context,
@@ -40,13 +43,14 @@ class IslandController(
     private var popup: IslandEvent? = null
     private var shown: IslandEvent? = null
 
-    private var curW = 0f
-    private var curH = 0f
-    private var curR = 0f
-    private var curA = 0f
+    private var pillW = 0f
+    private var pillH = 0f
+    private var pillR = 0f
+    private var pillA = 0f
     private var tw = -1
     private var th = -1
     private var texp = false
+    private val slack = dp(28)
 
     private var landscape = false
     private var appHidden = false
@@ -90,7 +94,7 @@ class IslandController(
     fun snapshot(): List<IslandEvent> = sticky.values.toList()
     fun restore(list: List<IslandEvent>) { for (e in list) { sticky[e.key] = e }; refresh() }
 
-    // ---------------- API رویدادها ----------------
+    // ---------------- events API ----------------
 
     fun post(e: IslandEvent) {
         if (e.sticky) {
@@ -102,7 +106,6 @@ class IslandController(
         val cur = popup
         if (cur != null && cur.key == e.key) {
             popup = e
-            if (!e.popup && cur.ttlMs == 0L) { /* همان کارت در حال نمایش است؛ فقط به‌روز می‌شود */ }
             if (e.popup) startPopupTimer(e)
         } else if (e.popup && !(e.sticky && e.key in dismissed)) {
             if (cur == null || cur.priority <= e.priority || cur.ttlMs != 0L) {
@@ -134,7 +137,7 @@ class IslandController(
         if (h != appHidden) { appHidden = h; refresh() }
     }
 
-    // ---------------- نمایش ----------------
+    // ---------------- display ----------------
 
     private fun onPrefsChanged() {
         view.applyStyle()
@@ -162,20 +165,6 @@ class IslandController(
     }
 
     private fun showEvent(e: IslandEvent, exp: Boolean, instant: Boolean) {
-        if (!attached) {
-            curW = dp(Prefs.int("compactW")) * 0.5f
-            curH = dp(Prefs.int("compactH")) * 0.5f
-            curR = curH / 2f
-            curA = 0f
-            tw = -1
-            view.alpha = 0f
-            addWindow()
-            setFrame(curW, curH, curR, 0f)
-        }
-        view.bind(e)
-        view.animate().cancel()
-        if (view.alpha < 1f) view.animate().alpha(1f).setDuration(160).start()
-
         val w: Int
         val h: Int
         val r: Float
@@ -188,18 +177,48 @@ class IslandController(
             h = dp(Prefs.int("compactH"))
             r = h / 2f
         }
+        if (!attached) {
+            lp.width = w + slack
+            lp.height = h + slack
+            pillW = dp(Prefs.int("compactW")) * 0.5f
+            pillH = dp(Prefs.int("compactH")) * 0.5f
+            pillR = pillH / 2f
+            pillA = 0f
+            tw = -1
+            view.alpha = 0f
+            view.setPill(pillW, pillH, pillR, 0f)
+            addWindow()
+        }
+        view.bind(e)
+        view.animate().cancel()
+        if (view.alpha < 1f) view.animate().alpha(1f).setDuration(160).start()
         if (exp && !texp && Prefs.bool("haptic")) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
         go(w, h, r, exp, instant)
     }
 
     private fun hide() {
         if (!attached) return
-        go((dp(Prefs.int("compactW")) * 0.5f).toInt(), (dp(Prefs.int("compactH")) * 0.5f).toInt(),
-            dp(Prefs.int("compactH")) * 0.25f, false, false)
+        val w = (dp(Prefs.int("compactW")) * 0.5f).toInt()
+        val h = (dp(Prefs.int("compactH")) * 0.5f).toInt()
+        go(w, h, h / 2f, false, false)
         view.animate().cancel()
         view.animate().alpha(0f).setDuration(220).withEndAction {
             if (shown == null) removeWindow()
         }.start()
+    }
+
+    private fun setWindow(w: Int, h: Int) {
+        val nw = maxOf(2, w)
+        val nh = maxOf(2, h)
+        if (nw == lp.width && nh == lp.height) return
+        lp.width = nw
+        lp.height = nh
+        if (attached) try { wm.updateViewLayout(view, lp) } catch (e: Exception) { }
+    }
+
+    private fun setPill(w: Float, h: Float, r: Float, a: Float) {
+        pillW = w; pillH = h; pillR = r; pillA = a
+        view.setPill(w, h, r, a)
     }
 
     private fun go(w: Int, h: Int, r: Float, exp: Boolean, instant: Boolean) {
@@ -208,13 +227,16 @@ class IslandController(
         animator?.cancel()
         val a1 = if (exp) 1f else 0f
         if (instant || !attached) {
-            setFrame(w.toFloat(), h.toFloat(), r, a1)
+            setWindow(w, h)
+            setPill(w.toFloat(), h.toFloat(), r, a1)
             return
         }
-        val w0 = curW
-        val h0 = curH
-        val r0 = curR
-        val a0 = curA
+        // grow the window once (with slack for the spring overshoot); shrink it once at the end
+        setWindow(maxOf(lp.width, w + slack), maxOf(lp.height, h + slack))
+        val w0 = pillW
+        val h0 = pillH
+        val r0 = pillR
+        val a0 = pillA
         val sp = SpringInterpolator(Prefs.int("bounce") / 100f)
         val va = ValueAnimator.ofFloat(0f, 1f)
         va.duration = Prefs.int("animMs").toLong()
@@ -222,26 +244,24 @@ class IslandController(
         va.addUpdateListener {
             val f = it.animatedFraction
             val p = sp.getInterpolation(f)
-            setFrame(w0 + (w - w0) * p, h0 + (h - h0) * p, r0 + (r - r0) * f, a0 + (a1 - a0) * f)
+            setPill(w0 + (w - w0) * p, h0 + (h - h0) * p, r0 + (r - r0) * f, a0 + (a1 - a0) * f)
         }
+        va.addListener(object : AnimatorListenerAdapter() {
+            private var cancelled = false
+            override fun onAnimationCancel(animation: Animator) { cancelled = true }
+            override fun onAnimationEnd(animation: Animator) {
+                if (cancelled) return
+                setPill(w.toFloat(), h.toFloat(), r, a1)
+                setWindow(w, h)
+            }
+        })
         animator = va
         va.start()
-    }
-
-    private fun setFrame(w: Float, h: Float, r: Float, a: Float) {
-        curW = w; curH = h; curR = r; curA = a
-        lp.width = maxOf(2, w.toInt())
-        lp.height = maxOf(2, h.toInt())
-        view.setRadius(minOf(r, lp.height / 2f))
-        view.setExpandAmount(a)
-        if (attached) try { wm.updateViewLayout(view, lp) } catch (e: Exception) { }
     }
 
     private fun addWindow() {
         if (attached) return
         try {
-            lp.width = maxOf(2, curW.toInt())
-            lp.height = maxOf(2, curH.toInt())
             wm.addView(view, lp)
             attached = true
         } catch (e: Exception) {
@@ -257,7 +277,7 @@ class IslandController(
         tw = -1
     }
 
-    // ---------------- ژست‌ها ----------------
+    // ---------------- gestures ----------------
 
     private fun expand(e: IslandEvent, ms: Long) {
         popup = e
@@ -274,7 +294,7 @@ class IslandController(
 
     override fun onTap() {
         val e = shown ?: return
-        if (popup == null) expand(e, 6000)
+        if (popup == null) expand(e, 7000)
         else {
             e.tap?.invoke()
             if (e.kind != Kind.CALL) collapse()
@@ -284,7 +304,7 @@ class IslandController(
     override fun onLongPress() {
         val e = shown ?: return
         if (Prefs.bool("haptic")) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-        if (popup == null) expand(e, 8000) else collapse()
+        if (popup == null) expand(e, 9000) else collapse()
     }
 
     override fun onSwipeUp() {
@@ -295,7 +315,7 @@ class IslandController(
 
     override fun onSwipeDown() {
         val e = shown ?: return
-        if (popup == null) expand(e, 6000)
+        if (popup == null) expand(e, 7000)
     }
 
     override fun onSwipeSide(next: Boolean) {

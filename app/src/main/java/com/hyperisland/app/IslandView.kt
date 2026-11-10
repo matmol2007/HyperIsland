@@ -1,14 +1,22 @@
 package com.hyperisland.app
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Outline
+import android.graphics.Paint
+import android.graphics.RadialGradient
+import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.media.session.PlaybackState
 import android.os.SystemClock
+import android.text.TextUtils
 import android.util.TypedValue
-import android.view.Gravity
 import android.view.GestureDetector
+import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
@@ -18,6 +26,10 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 
+/**
+ * The island itself. The pill is DRAWN by this view (rounded rect + clip via outline),
+ * so animating it never triggers a layout pass or a WindowManager call per frame.
+ */
 class IslandView(ctx: Context) : FrameLayout(ctx) {
 
     interface Callbacks {
@@ -33,19 +45,32 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         private set
 
     private var scale = 1f
-    private var faDigits = true
-    private var radiusPx = 0f
+    private var pw = 0f
+    private var ph = 0f
+    private var pr = 0f
+    private var amount = -1f
     private var compactIconPx = dp(20)
-    private val bg = GradientDrawable()
+    private var touchInside = false
+    private var bgColorOpaque = Color.BLACK
+    private var txtColor = Color.WHITE
 
-    // حالت کوچک (کپسول)
+    private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var glowShader: RadialGradient? = null
+    private var glowAcc = 0
+    private var strokeW = 0f
+    private var ambient = true
+    private val rect = RectF()
+
+    // compact capsule
     private val compact = LinearLayout(ctx)
     private val cIcon = ImageView(ctx)
     private val cSpacer = View(ctx)
     private val cEq = EqualizerView(ctx)
     private val cText = TextView(ctx)
 
-    // حالت بزرگ
+    // expanded card
     private val expanded = LinearLayout(ctx)
     private val row = LinearLayout(ctx)
     private val art = ImageView(ctx)
@@ -55,14 +80,33 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
     private val rightBox = FrameLayout(ctx)
     private val eq = EqualizerView(ctx)
     private val rightTv = TextView(ctx)
-    private val bar = ThinBar(ctx)
+    private val pbar = ThinBar(ctx)
+    private val seekRow = LinearLayout(ctx)
+    private val elapsedTv = TextView(ctx)
+    private val seek = ThinBar(ctx)
+    private val durTv = TextView(ctx)
     private val controls = LinearLayout(ctx)
     private val bPrev = ImageView(ctx)
     private val bPlay = ImageView(ctx)
     private val bNext = ImageView(ctx)
-    private val bDecline = ImageView(ctx)
-    private val callSpacer = View(ctx)
-    private val bAnswer = ImageView(ctx)
+    private val callRow = LinearLayout(ctx)
+    private val btnDecline = LinearLayout(ctx)
+    private val declineIcon = ImageView(ctx)
+    private val declineLabel = TextView(ctx)
+    private val btnAnswer = LinearLayout(ctx)
+    private val answerIcon = ImageView(ctx)
+    private val answerLabel = TextView(ctx)
+
+    // cached values so repeated updates don't redo expensive work
+    private var lastAvatar: Drawable? = null
+    private var lastIcon = -1
+    private var lastAcc = 0
+    private var lastKind: Kind? = null
+    private var lastTitle = ""
+    private var lastSub = ""
+    private var lastRt = ""
+    private var lastEl = ""
+    private var lastDur = ""
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -90,17 +134,21 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
     })
 
     init {
-        bg.shape = GradientDrawable.RECTANGLE
-        background = bg
         outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(v: View, o: Outline) {
-                o.setRoundRect(0, 0, v.width, v.height, radiusPx)
+                val l = (v.width - pw) / 2f
+                o.setRoundRect(
+                    Math.floor(l.toDouble()).toInt(), 0,
+                    Math.ceil((l + pw).toDouble()).toInt(), Math.ceil(ph.toDouble()).toInt(), pr
+                )
             }
         }
         clipToOutline = true
 
+        // ---- compact
         compact.orientation = LinearLayout.HORIZONTAL
         compact.gravity = Gravity.CENTER_VERTICAL
+        compact.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         cIcon.scaleType = ImageView.ScaleType.CENTER_CROP
         cText.maxLines = 1
         cText.typeface = Typeface.DEFAULT_BOLD
@@ -110,22 +158,31 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         compact.addView(cText)
         addView(compact)
 
+        // ---- expanded
         expanded.orientation = LinearLayout.VERTICAL
+        expanded.gravity = Gravity.CENTER_VERTICAL
+        expanded.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
         textCol.orientation = LinearLayout.VERTICAL
         textCol.gravity = Gravity.CENTER_VERTICAL
-        titleTv.maxLines = 1
         titleTv.typeface = Typeface.DEFAULT_BOLD
-        titleTv.ellipsize = android.text.TextUtils.TruncateAt.END
-        subTv.ellipsize = android.text.TextUtils.TruncateAt.END
+        titleTv.setSingleLine()
+        titleTv.ellipsize = TextUtils.TruncateAt.MARQUEE
+        titleTv.marqueeRepeatLimit = -1
+        titleTv.isSelected = true
+        subTv.ellipsize = TextUtils.TruncateAt.END
         rightTv.typeface = Typeface.DEFAULT_BOLD
         rightTv.maxLines = 1
-        for (t in listOf(titleTv, subTv, rightTv, cText)) {
+        elapsedTv.maxLines = 1
+        durTv.maxLines = 1
+        for (t in listOf(titleTv, subTv, rightTv, cText, elapsedTv, durTv, declineLabel, answerLabel)) {
             t.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
             t.textDirection = View.TEXT_DIRECTION_FIRST_STRONG
             t.includeFontPadding = false
         }
+        declineLabel.typeface = Typeface.DEFAULT_BOLD
+        answerLabel.typeface = Typeface.DEFAULT_BOLD
         textCol.addView(titleTv)
         textCol.addView(subTv)
         rightBox.addView(eq)
@@ -134,28 +191,62 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         row.addView(textCol, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(rightBox)
         expanded.addView(row)
-        expanded.addView(bar)
+
+        expanded.addView(pbar)
+
+        seekRow.orientation = LinearLayout.HORIZONTAL
+        seekRow.gravity = Gravity.CENTER_VERTICAL
+        seekRow.layoutDirection = View.LAYOUT_DIRECTION_LTR
+        seek.seekable = true
+        seek.onSeek = { f ->
+            val e = event
+            if (e != null && e.durMs > 0) {
+                val pos = (f * e.durMs).toLong()
+                val m = e.media
+                if (m != null) m.transportControls.seekTo(pos)
+                else { e.posBase = pos; e.posAt = SystemClock.elapsedRealtime() }
+            }
+            hap()
+        }
+        seekRow.addView(elapsedTv)
+        seekRow.addView(seek, LinearLayout.LayoutParams(0, -2, 1f))
+        seekRow.addView(durTv)
+        expanded.addView(seekRow)
+
         controls.orientation = LinearLayout.HORIZONTAL
         controls.gravity = Gravity.CENTER
         controls.layoutDirection = View.LAYOUT_DIRECTION_LTR
-        for (b in listOf(bPrev, bPlay, bNext, bDecline, bAnswer)) {
-            b.scaleType = ImageView.ScaleType.FIT_CENTER
-            b.setColorFilter(0xFFFFFFFF.toInt())
-        }
+        for (b in listOf(bPrev, bPlay, bNext)) b.scaleType = ImageView.ScaleType.FIT_CENTER
         bPrev.setImageResource(R.drawable.ic_prev)
         bNext.setImageResource(R.drawable.ic_next)
         bPlay.setImageResource(R.drawable.ic_pause)
-        bDecline.setImageResource(R.drawable.ic_call_end)
-        bAnswer.setImageResource(R.drawable.ic_call)
-        bDecline.background = oval(0xFFFF453A.toInt())
-        bAnswer.background = oval(0xFF30D158.toInt())
         controls.addView(bPrev)
         controls.addView(bPlay)
         controls.addView(bNext)
-        controls.addView(bDecline)
-        controls.addView(callSpacer, LinearLayout.LayoutParams(0, 1, 1f))
-        controls.addView(bAnswer)
         expanded.addView(controls)
+
+        callRow.orientation = LinearLayout.HORIZONTAL
+        callRow.gravity = Gravity.CENTER
+        for ((box, ic, lb) in listOf(
+            Triple(btnDecline, declineIcon, declineLabel), Triple(btnAnswer, answerIcon, answerLabel)
+        )) {
+            box.orientation = LinearLayout.HORIZONTAL
+            box.gravity = Gravity.CENTER
+            ic.scaleType = ImageView.ScaleType.FIT_CENTER
+            ic.setColorFilter(Color.WHITE)
+            lb.setTextColor(Color.WHITE)
+            box.addView(ic)
+            box.addView(lb)
+        }
+        declineIcon.setImageResource(R.drawable.ic_call_end)
+        answerIcon.setImageResource(R.drawable.ic_call)
+        declineLabel.text = "Decline"
+        answerLabel.text = "Answer"
+        btnDecline.background = pill(0xFFFF453A.toInt())
+        btnAnswer.background = pill(0xFF30D158.toInt())
+        callRow.addView(btnDecline)
+        callRow.addView(btnAnswer)
+        expanded.addView(callRow)
         addView(expanded)
 
         bPlay.setOnClickListener {
@@ -163,16 +254,33 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
             if (m != null) {
                 if (m.playbackState?.state == PlaybackState.STATE_PLAYING) m.transportControls.pause()
                 else m.transportControls.play()
+            } else {
+                val e = event
+                if (e != null) {
+                    val now = SystemClock.elapsedRealtime()
+                    e.posBase = e.positionMs(now)
+                    e.posAt = now
+                    e.playing = !e.playing
+                    bind(e)
+                }
             }
             hap()
         }
         bNext.setOnClickListener { event?.media?.transportControls?.skipToNext(); hap() }
         bPrev.setOnClickListener { event?.media?.transportControls?.skipToPrevious(); hap() }
-        bAnswer.setOnClickListener { event?.onAnswer?.invoke(); hap() }
-        bDecline.setOnClickListener { event?.onDecline?.invoke(); hap() }
+        btnAnswer.setOnClickListener { event?.onAnswer?.invoke(); hap() }
+        btnDecline.setOnClickListener { event?.onDecline?.invoke(); hap() }
 
         applyStyle()
-        setExpandAmount(0f)
+        applyAmount(0f)
+    }
+
+    private fun pill(c: Int): GradientDrawable {
+        val g = GradientDrawable()
+        g.shape = GradientDrawable.RECTANGLE
+        g.cornerRadius = dpF(40f)
+        g.setColor(c)
+        return g
     }
 
     private fun oval(c: Int): GradientDrawable {
@@ -186,7 +294,66 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         if (Prefs.bool("haptic")) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
     }
 
-    override fun onTouchEvent(ev: MotionEvent): Boolean = gd.onTouchEvent(ev) || super.onTouchEvent(ev)
+    // ------------------------------------------------------------------ drawing
+
+    /** Called every animation frame: only invalidates, never re-lays-out. */
+    fun setPill(w: Float, h: Float, r: Float, a: Float) {
+        pw = w
+        ph = h
+        pr = minOf(r, h / 2f)
+        if (a != amount) applyAmount(a)
+        invalidateOutline()
+        invalidate()
+    }
+
+    private fun applyAmount(a: Float) {
+        amount = a
+        val ca = (1f - a * 2.4f).coerceIn(0f, 1f)
+        compact.alpha = ca
+        compact.visibility = if (ca <= 0.01f) View.INVISIBLE else View.VISIBLE
+        val ea = ((a - 0.3f) / 0.6f).coerceIn(0f, 1f)
+        expanded.alpha = ea
+        expanded.visibility = if (ea <= 0.01f) View.INVISIBLE else View.VISIBLE
+    }
+
+    override fun dispatchDraw(c: Canvas) {
+        val l = (width - pw) / 2f
+        rect.set(l, 0f, l + pw, ph)
+        c.drawRoundRect(rect, pr, pr, bgPaint)
+        val gs = glowShader
+        if (ambient && gs != null) {
+            glowPaint.shader = gs
+            glowPaint.alpha = ((0.45f + 0.55f * amount.coerceIn(0f, 1f)) * 255f).toInt()
+            c.save()
+            c.translate(l, 0f)
+            c.drawRect(0f, 0f, pw, ph, glowPaint)
+            c.restore()
+        }
+        if (strokeW > 0f) {
+            val h = strokeW / 2f
+            rect.set(l + h, h, l + pw - h, ph - h)
+            c.drawRoundRect(rect, maxOf(0f, pr - h), maxOf(0f, pr - h), strokePaint)
+        }
+        super.dispatchDraw(c)
+    }
+
+    private fun updateGlow(acc: Int) {
+        if (acc == glowAcc && glowShader != null) return
+        glowAcc = acc
+        glowShader = RadialGradient(
+            0f, 0f, dpF(230f),
+            intArrayOf(acc.withAlpha(105), acc.withAlpha(0)), null, Shader.TileMode.CLAMP
+        )
+    }
+
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            val l = (width - pw) / 2f
+            touchInside = ev.x >= l && ev.x <= l + pw && ev.y >= 0f && ev.y <= ph
+        }
+        if (!touchInside) return false
+        return gd.onTouchEvent(ev) || super.onTouchEvent(ev)
+    }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -199,30 +366,16 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         super.onDetachedFromWindow()
     }
 
-    fun setRadius(r: Float) {
-        radiusPx = r
-        bg.cornerRadius = r
-        invalidateOutline()
-    }
-
-    /** 0 = کپسول، 1 = کارت بزرگ ؛ فقط شفافیت محتوا را کنترل می‌کند. */
-    fun setExpandAmount(a: Float) {
-        val ca = (1f - a * 2.4f).coerceIn(0f, 1f)
-        compact.alpha = ca
-        compact.visibility = if (ca <= 0.01f) View.INVISIBLE else View.VISIBLE
-        val ea = ((a - 0.3f) / 0.6f).coerceIn(0f, 1f)
-        expanded.alpha = ea
-        expanded.visibility = if (ea <= 0.01f) View.INVISIBLE else View.VISIBLE
-    }
+    // ------------------------------------------------------------------ sizing / style
 
     fun expandedHeightPx(e: IslandEvent): Int {
         val h = when (e.kind) {
-            Kind.MESSAGE -> 80f
+            Kind.MESSAGE -> 84f
             Kind.CALL -> 146f
-            Kind.MUSIC -> 158f
-            Kind.LIVE -> if (e.progress >= 0f) 98f else 80f
-            Kind.SYSTEM -> if (e.progress >= 0f) 94f else 76f
-            Kind.VOLUME -> 92f
+            Kind.MUSIC -> 174f
+            Kind.LIVE -> if (e.progress >= 0f) 104f else 84f
+            Kind.SYSTEM -> if (e.progress >= 0f) 104f else 84f
+            Kind.VOLUME -> 96f
         }
         return dp(h * scale)
     }
@@ -230,11 +383,14 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
     fun applyStyle() {
         val s = Prefs.int("scale") / 100f
         scale = s
-        faDigits = Prefs.bool("faDigits")
         val acc = Prefs.int("accent")
-        val txt = Prefs.int("text")
-        bg.setColor(Prefs.int("bg").withAlpha(Prefs.int("opacity") * 255 / 100))
-        if (Prefs.bool("glow")) bg.setStroke(dp(1.5f), acc.withAlpha(170)) else bg.setStroke(0, 0)
+        txtColor = Prefs.int("text")
+        bgColorOpaque = Prefs.int("bg") or 0xFF000000.toInt()
+        bgPaint.color = Prefs.int("bg").withAlpha(Prefs.int("opacity") * 255 / 100)
+        ambient = Prefs.bool("ambient")
+        strokeW = if (Prefs.bool("glow")) dpF(1.5f) else 0f
+        strokePaint.strokeWidth = strokeW
+        strokePaint.color = acc.withAlpha(170)
         layoutDirection = when (Prefs.int("layoutDir")) {
             1 -> View.LAYOUT_DIRECTION_LTR
             2 -> View.LAYOUT_DIRECTION_RTL
@@ -250,58 +406,94 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         cIcon.layoutParams = LinearLayout.LayoutParams(compactIconPx, compactIconPx)
         cEq.layoutParams = LinearLayout.LayoutParams((compactIconPx * 1.1f).toInt(), (compactIconPx * 0.8f).toInt())
         cText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * s)
-        cText.setTextColor(txt)
 
         val ew = dp(Prefs.int("expandW"))
-        expanded.layoutParams = LayoutParams(ew, LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
+        expanded.layoutParams = LayoutParams(ew, dp(174f * s), Gravity.TOP or Gravity.CENTER_HORIZONTAL)
         expanded.setPadding(dp(16 * s), dp(14 * s), dp(16 * s), dp(14 * s))
-        val artPx = dp(48 * s)
+        val artPx = dp(52 * s)
         row.layoutParams = LinearLayout.LayoutParams(-1, -2)
         art.layoutParams = LinearLayout.LayoutParams(artPx, artPx)
         val tcLp = LinearLayout.LayoutParams(0, -2, 1f)
         tcLp.marginStart = dp(12 * s)
         tcLp.marginEnd = dp(8 * s)
         textCol.layoutParams = tcLp
-        titleTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * s)
+        titleTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f * s)
         subTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f * s)
-        rightTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * s)
-        titleTv.setTextColor(txt)
-        subTv.setTextColor(txt.withAlpha(175))
-        rightTv.setTextColor(txt)
+        elapsedTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f * s)
+        durTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f * s)
+        titleTv.setTextColor(txtColor)
+        subTv.setTextColor(txtColor.withAlpha(165))
+        elapsedTv.setTextColor(txtColor.withAlpha(150))
+        durTv.setTextColor(txtColor.withAlpha(150))
+        rightTv.setTextColor(txtColor)
+        cText.setTextColor(txtColor)
         eq.layoutParams = FrameLayout.LayoutParams(dp(26 * s), dp(20 * s), Gravity.CENTER)
-        val barLp = LinearLayout.LayoutParams(-1, dp(4 * s))
-        barLp.topMargin = dp(12 * s)
-        bar.layoutParams = barLp
-        bar.track = txt.withAlpha(50)
+
+        val pbLp = LinearLayout.LayoutParams(-1, dp(4 * s))
+        pbLp.topMargin = dp(12 * s)
+        pbar.layoutParams = pbLp
+        pbar.track = txtColor.withAlpha(45)
+        seek.track = txtColor.withAlpha(45)
+        seek.thickness = dpF(4f * s)
+        val sLp = LinearLayout.LayoutParams(-1, dp(18 * s))
+        sLp.topMargin = dp(10 * s)
+        seekRow.layoutParams = sLp
+        val timeW = dp(34 * s)
+        elapsedTv.layoutParams = LinearLayout.LayoutParams(timeW, -2)
+        durTv.layoutParams = LinearLayout.LayoutParams(timeW, -2)
+        durTv.gravity = Gravity.END
+        seek.layoutParams = LinearLayout.LayoutParams(0, -1, 1f).also {
+            it.marginStart = dp(4 * s)
+            it.marginEnd = dp(4 * s)
+        }
+
         val cLp = LinearLayout.LayoutParams(-1, -2)
-        cLp.topMargin = dp(6 * s)
+        cLp.topMargin = dp(4 * s)
         controls.layoutParams = cLp
-        val sm = dp(44 * s)
-        val big = dp(52 * s)
-        val call = dp(54 * s)
-        val gap = dp(10 * s)
+        val sm = dp(46 * s)
+        val big = dp(54 * s)
+        val gap = dp(18 * s)
         bPrev.layoutParams = LinearLayout.LayoutParams(sm, sm).also { it.marginEnd = gap }
         bPlay.layoutParams = LinearLayout.LayoutParams(big, big)
         bNext.layoutParams = LinearLayout.LayoutParams(sm, sm).also { it.marginStart = gap }
-        bPrev.setPadding(dp(8 * s), dp(8 * s), dp(8 * s), dp(8 * s))
-        bNext.setPadding(dp(8 * s), dp(8 * s), dp(8 * s), dp(8 * s))
-        bPlay.setPadding(dp(10 * s), dp(10 * s), dp(10 * s), dp(10 * s))
-        bDecline.layoutParams = LinearLayout.LayoutParams(call, call)
-        bAnswer.layoutParams = LinearLayout.LayoutParams(call, call)
-        bDecline.setPadding(dp(14 * s), dp(14 * s), dp(14 * s), dp(14 * s))
-        bAnswer.setPadding(dp(14 * s), dp(14 * s), dp(14 * s), dp(14 * s))
-        controls.setPadding(dp(20 * s), 0, dp(20 * s), 0)
+        bPrev.setPadding(dp(11 * s), dp(11 * s), dp(11 * s), dp(11 * s))
+        bNext.setPadding(dp(11 * s), dp(11 * s), dp(11 * s), dp(11 * s))
+        bPlay.setPadding(dp(14 * s), dp(14 * s), dp(14 * s), dp(14 * s))
+        bPrev.setColorFilter(txtColor)
+        bNext.setColorFilter(txtColor)
+        bPlay.setColorFilter(bgColorOpaque)
+        bPlay.background = oval(txtColor)
+
+        val crLp = LinearLayout.LayoutParams(-1, dp(46 * s))
+        crLp.topMargin = dp(14 * s)
+        callRow.layoutParams = crLp
+        val half = LinearLayout.LayoutParams(0, -1, 1f)
+        half.marginEnd = dp(5 * s)
+        btnDecline.layoutParams = half
+        val half2 = LinearLayout.LayoutParams(0, -1, 1f)
+        half2.marginStart = dp(5 * s)
+        btnAnswer.layoutParams = half2
+        val ip = dp(20 * s)
+        declineIcon.layoutParams = LinearLayout.LayoutParams(ip, ip).also { it.marginEnd = dp(6 * s) }
+        answerIcon.layoutParams = LinearLayout.LayoutParams(ip, ip).also { it.marginEnd = dp(6 * s) }
+        declineLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f * s)
+        answerLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f * s)
+
+        lastAvatar = null
+        lastIcon = -1
+        lastAcc = 0
         event?.let { bind(it) }
     }
 
-    private fun setSlot(iv: ImageView, e: IslandEvent, px: Int, acc: Int, roundedSquare: Boolean) {
+    private fun setSlot(iv: ImageView, e: IslandEvent, px: Int, acc: Int, roundedSquare: Boolean, copy: Boolean) {
         val av = e.avatar
         if (av != null) {
             iv.background = null
             iv.setPadding(0, 0, 0, 0)
             iv.clearColorFilter()
             iv.scaleType = ImageView.ScaleType.CENTER_CROP
-            iv.setImageDrawable(av)
+            val d = if (copy) (av.constantState?.newDrawable(resources)?.mutate() ?: av) else av
+            iv.setImageDrawable(d)
         } else {
             iv.background = oval(acc.withAlpha(60))
             val p = (px * 0.26f).toInt()
@@ -310,7 +502,7 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
             iv.setColorFilter(acc)
             iv.setImageResource(e.iconRes)
         }
-        val r = if (av != null && roundedSquare) px * 0.22f else px / 2f
+        val r = if (av != null && roundedSquare) px * 0.24f else px / 2f
         iv.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(v: View, o: Outline) {
                 o.setRoundRect(0, 0, v.width, v.height, r)
@@ -323,31 +515,49 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         event = e
         val acc = if (e.accent != 0) e.accent else Prefs.int("accent")
         val k = e.kind
-        bar.fill = acc
-        setSlot(art, e, dp(48 * scale), acc, k == Kind.MUSIC)
-        setSlot(cIcon, e, compactIconPx, acc, k == Kind.MUSIC)
+        val music = k == Kind.MUSIC
+        val call = k == Kind.CALL
 
-        titleTv.text = e.title
-        subTv.text = e.subtitle
+        if (e.avatar !== lastAvatar || e.iconRes != lastIcon || acc != lastAcc || k != lastKind) {
+            lastAvatar = e.avatar
+            lastIcon = e.iconRes
+            lastAcc = acc
+            lastKind = k
+            setSlot(art, e, dp(52 * scale), acc, music, false)
+            setSlot(cIcon, e, compactIconPx, acc, music, true)
+            pbar.fill = acc
+            seek.fill = acc
+            eq.color = acc
+            cEq.color = acc
+            updateGlow(acc)
+            invalidate()
+        }
+
+        val eh = expandedHeightPx(e)
+        val elp = expanded.layoutParams
+        if (elp != null && elp.height != eh) {
+            elp.height = eh
+            expanded.layoutParams = elp
+        }
+
+        if (e.title != lastTitle) { lastTitle = e.title; titleTv.text = e.title }
+        if (e.subtitle != lastSub) { lastSub = e.subtitle; subTv.text = e.subtitle }
         subTv.visibility = if (e.subtitle.isEmpty()) View.GONE else View.VISIBLE
         subTv.maxLines = if (k == Kind.MESSAGE) 2 else 1
 
-        val music = k == Kind.MUSIC
-        val call = k == Kind.CALL
-        bar.visibility = if ((music && e.durMs > 0) || (!music && e.progress >= 0f)) View.VISIBLE else View.GONE
-        controls.visibility = if (music || call) View.VISIBLE else View.GONE
-        val mv = if (music) View.VISIBLE else View.GONE
-        bPrev.visibility = mv
-        bPlay.visibility = mv
-        bNext.visibility = mv
-        bDecline.visibility = if (call) View.VISIBLE else View.GONE
-        bAnswer.visibility = if (call && e.ringing) View.VISIBLE else View.GONE
-        callSpacer.visibility = if (call && e.ringing) View.VISIBLE else View.GONE
-        eq.visibility = mv
-        eq.color = acc
+        val hasDur = music && e.durMs > 0
+        pbar.visibility = if (!music && e.progress >= 0f) View.VISIBLE else View.GONE
+        seekRow.visibility = if (hasDur) View.VISIBLE else View.GONE
+        controls.visibility = if (music) View.VISIBLE else View.GONE
+        callRow.visibility = if (call) View.VISIBLE else View.GONE
+        btnAnswer.visibility = if (call && e.ringing) View.VISIBLE else View.GONE
+        declineLabel.text = if (e.ringing) "Decline" else "Hang up"
+        eq.visibility = if (music) View.VISIBLE else View.GONE
         eq.running = e.playing
-        cEq.color = acc
-        cText.setTextColor(acc)
+        rightTv.setTextSize(
+            TypedValue.COMPLEX_UNIT_SP,
+            (if (k == Kind.CALL) 14f else 20f) * scale
+        )
         bPlay.setImageResource(if (e.playing) R.drawable.ic_pause else R.drawable.ic_play)
         updateDynamic()
     }
@@ -358,29 +568,31 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         var rt = e.rightText
         if (e.chronoBase != 0L) {
             val ms = if (e.chronoDown) e.chronoBase - now else now - e.chronoBase
-            rt = Fa.digits(fmtTime(ms.coerceAtLeast(0L)), faDigits)
+            rt = fmtTime(ms.coerceAtLeast(0L))
         }
         if (e.kind == Kind.MUSIC) {
             rightTv.visibility = View.GONE
             cEq.visibility = View.VISIBLE
             cEq.running = e.playing
             cText.visibility = View.GONE
-            val m = e.media
-            val st = m?.playbackState
-            if (st != null && e.durMs > 0) {
-                var pos = st.position
-                if (st.state == PlaybackState.STATE_PLAYING) {
-                    pos += ((now - st.lastPositionUpdateTime) * st.playbackSpeed).toLong()
-                }
-                bar.value = pos.toFloat() / e.durMs.toFloat()
+            if (e.durMs > 0) {
+                val pos = e.positionMs(now)
+                if (!seek.dragging) seek.value = pos.toFloat() / e.durMs.toFloat()
+                val el = fmtTime(pos)
+                val du = fmtTime(e.durMs)
+                if (el != lastEl) { lastEl = el; elapsedTv.text = el }
+                if (du != lastDur) { lastDur = du; durTv.text = du }
             }
         } else {
-            rightTv.text = rt
+            if (rt != lastRt) {
+                lastRt = rt
+                rightTv.text = rt
+                cText.text = rt
+            }
             rightTv.visibility = if (rt.isEmpty()) View.GONE else View.VISIBLE
             cEq.visibility = View.GONE
-            cText.text = rt
             cText.visibility = if (rt.isEmpty()) View.GONE else View.VISIBLE
-            if (e.progress >= 0f) bar.value = e.progress
+            if (e.progress >= 0f) pbar.value = e.progress
         }
     }
 }
