@@ -119,7 +119,7 @@ class HyperNotificationListener : NotificationListenerService() {
             lastMsg[key] = sig
             val e = IslandEvent(key, Kind.MESSAGE)
             fill(e, n, pkg, title, text)
-            if (Prefs.bool("hideMsgText")) e.subtitle = "پیام جدید"
+            if (Prefs.bool("hideMsgText")) e.subtitle = "New message"
             e.iconRes = R.drawable.ic_message
             e.priority = 30
             e.ttlMs = Prefs.int("msgSec") * 1000L
@@ -141,7 +141,7 @@ class HyperNotificationListener : NotificationListenerService() {
         seen.add(key)
         if (hasProg) {
             e.progress = cur.toFloat() / max
-            if (!chrono) e.rightText = Fa.digits("${cur * 100 / max}", Prefs.bool("faDigits")) + "٪"
+            if (!chrono) e.rightText = Fa.digits("${cur * 100 / max}", Prefs.bool("faDigits")) + "%"
         }
         if (chrono) {
             val nowEl = SystemClock.elapsedRealtime()

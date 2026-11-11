@@ -12,7 +12,6 @@ import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 
-/** موزیک: وضعیت پخش، آهنگ، کاور و کنترل‌ها از MediaSession. */
 class MediaMonitor(private val ctx: Context, private val comp: ComponentName) {
     private val msm = ctx.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
     private val map = HashMap<MediaSession.Token, Pair<MediaController, MediaController.Callback>>()
@@ -101,7 +100,7 @@ class MediaMonitor(private val ctx: Context, private val comp: ComponentName) {
 
         val changed = (title ?: "") + "|" + (artist ?: "") != lastTitle
         lastTitle = (title ?: "") + "|" + (artist ?: "")
-        ev.title = if (title.isNullOrBlank()) "در حال پخش" else title
+        ev.title = if (title.isNullOrBlank()) "Now playing" else title
         ev.subtitle = artist ?: ""
         ev.iconRes = R.drawable.ic_music
         ev.avatar = if (art != null) BitmapDrawable(ctx.resources, art) else appIcon
