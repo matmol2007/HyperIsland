@@ -27,6 +27,8 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
     private var lastSaver = pm.isPowerSaveMode
     private var lastDnd = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
 
+    private fun t(id: Int): String = Lang.s(ctx, id)
+
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
             try { handle(i, isInitialStickyBroadcast) } catch (e: Exception) { }
@@ -37,7 +39,7 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
         override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
             if (!Prefs.bool("fFlash")) return
             if (enabled) {
-                val e = ev("torch", "Flashlight is on", "Tap to turn off", R.drawable.ic_flashlight, 0xFFFFD60A.toInt())
+                val e = ev("torch", t(R.string.evt_torch_on), t(R.string.evt_torch_sub), R.drawable.ic_flashlight, 0xFFFFD60A.toInt())
                 e.sticky = true
                 e.priority = 30
                 e.tap = { try { cam?.setTorchMode(cameraId, false) } catch (x: Exception) { } }
@@ -115,29 +117,30 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                     fullFired = p >= 100
                     if (Prefs.bool("fCharge")) {
                         val kind = when {
-                            (pl and BatteryManager.BATTERY_PLUGGED_WIRELESS) != 0 -> "Wireless"
-                            (pl and BatteryManager.BATTERY_PLUGGED_USB) != 0 -> "USB"
-                            else -> "Charger"
+                            (pl and BatteryManager.BATTERY_PLUGGED_WIRELESS) != 0 -> t(R.string.evt_wireless)
+                            (pl and BatteryManager.BATTERY_PLUGGED_USB) != 0 -> t(R.string.evt_usb)
+                            else -> t(R.string.evt_charger)
                         }
-                        // Use dedicated battery-charging icon instead of plain bolt
-                        ctrl.post(ev("charge", "Charging", kind, R.drawable.ic_battery_charging, 0xFF30D158.toInt(), p / 100f, pct(p)))
+                        ctrl.post(ev("charge", t(R.string.evt_charging), kind, R.drawable.ic_battery_charging, 0xFF30D158.toInt(), p / 100f, pct(p)))
                     }
                 } else if (!now && plugged == 1) {
                     plugged = 0
                     if (Prefs.bool("fUnplug")) {
-                        ctrl.post(ev("charge", "Charger unplugged", "", R.drawable.ic_battery, 0, p / 100f, pct(p)))
+                        ctrl.post(ev("charge", t(R.string.evt_unplugged), "", R.drawable.ic_battery, 0, p / 100f, pct(p)))
                     }
                 }
                 if (now) {
                     if (p >= 100 && !fullFired) {
                         fullFired = true
-                        if (Prefs.bool("fFull")) ctrl.post(ev("full", "Fully charged", "Unplug to save battery health", R.drawable.ic_battery_charging, 0xFF30D158.toInt(), 1f, pct(100)))
+                        if (Prefs.bool("fFull")) {
+                            ctrl.post(ev("full", t(R.string.evt_fully_charged), t(R.string.evt_fully_sub), R.drawable.ic_battery_charging, 0xFF30D158.toInt(), 1f, pct(100)))
+                        }
                     }
                 } else {
                     if (p <= low && !lowFired) {
                         lowFired = true
                         if (Prefs.bool("fLow")) {
-                            val e = ev("low", "Low battery", "Plug in your charger soon", R.drawable.ic_battery, 0xFFFF453A.toInt(), p / 100f, pct(p))
+                            val e = ev("low", t(R.string.evt_low_battery), t(R.string.evt_low_sub), R.drawable.ic_battery, 0xFFFF453A.toInt(), p / 100f, pct(p))
                             e.ttlMs = 4000
                             ctrl.post(e)
                         }
@@ -150,9 +153,9 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                 val m = am.ringerMode
                 if (m != lastRinger && Prefs.bool("fSilent")) {
                     val e = when (m) {
-                        AudioManager.RINGER_MODE_SILENT -> ev("ringer", "Silent", "Ringer is off", R.drawable.ic_volume_off, 0xFFFF9F0A.toInt())
-                        AudioManager.RINGER_MODE_VIBRATE -> ev("ringer", "Vibrate", "Vibration only", R.drawable.ic_volume_off, 0xFFFF9F0A.toInt())
-                        else -> ev("ringer", "Ringer on", "Sound is on", R.drawable.ic_volume_up, 0xFF30D158.toInt())
+                        AudioManager.RINGER_MODE_SILENT -> ev("ringer", t(R.string.evt_silent), t(R.string.evt_silent_sub), R.drawable.ic_volume_off, 0xFFFF9F0A.toInt())
+                        AudioManager.RINGER_MODE_VIBRATE -> ev("ringer", t(R.string.evt_vibrate), t(R.string.evt_vibrate_sub), R.drawable.ic_volume_off, 0xFFFF9F0A.toInt())
+                        else -> ev("ringer", t(R.string.evt_ringer_on), t(R.string.evt_ringer_on_sub), R.drawable.ic_volume_up, 0xFF30D158.toInt())
                     }
                     ctrl.post(e)
                 }
@@ -162,7 +165,7 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
             PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> {
                 val on = pm.isPowerSaveMode
                 if (on != lastSaver && Prefs.bool("fSaver")) {
-                    ctrl.post(ev("saver", if (on) "Battery saver on" else "Battery saver off", "", R.drawable.ic_battery, if (on) 0xFFFFD60A.toInt() else 0))
+                    ctrl.post(ev("saver", if (on) t(R.string.evt_saver_on) else t(R.string.evt_saver_off), "", R.drawable.ic_battery, if (on) 0xFFFFD60A.toInt() else 0))
                 }
                 lastSaver = on
             }
@@ -170,14 +173,14 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
             Intent.ACTION_AIRPLANE_MODE_CHANGED -> {
                 if (Prefs.bool("fAirplane")) {
                     val on = i.getBooleanExtra("state", false)
-                    ctrl.post(ev("airplane", if (on) "Airplane mode on" else "Airplane mode off", "", R.drawable.ic_airplane, 0xFF64D2FF.toInt()))
+                    ctrl.post(ev("airplane", if (on) t(R.string.evt_airplane_on) else t(R.string.evt_airplane_off), "", R.drawable.ic_airplane, 0xFF64D2FF.toInt()))
                 }
             }
 
             Intent.ACTION_HEADSET_PLUG -> {
                 if (!initial && Prefs.bool("fHeadset")) {
                     val on = i.getIntExtra("state", 0) == 1
-                    ctrl.post(ev("headset", if (on) "Headphones connected" else "Headphones disconnected", "", R.drawable.ic_headphones, 0xFF0A84FF.toInt()))
+                    ctrl.post(ev("headset", if (on) t(R.string.evt_headset_on) else t(R.string.evt_headset_off), "", R.drawable.ic_headphones, 0xFF0A84FF.toInt()))
                 }
             }
 
@@ -188,16 +191,16 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                     else @Suppress("DEPRECATION") i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                     val major = d?.bluetoothClass?.majorDeviceClass
                     if (d != null && major != null && major != BluetoothClass.Device.Major.AUDIO_VIDEO) return
-                    val name = try { d?.name } catch (e: SecurityException) { null } ?: "Bluetooth device"
+                    val name = try { d?.name } catch (e: SecurityException) { null } ?: "Bluetooth"
                     val on = i.action == BluetoothDevice.ACTION_ACL_CONNECTED
-                    ctrl.post(ev("bt", if (on) "Connected" else "Disconnected", name, R.drawable.ic_headphones, 0xFF0A84FF.toInt()))
+                    ctrl.post(ev("bt", if (on) t(R.string.evt_bt_on) else t(R.string.evt_bt_off), name, R.drawable.ic_headphones, 0xFF0A84FF.toInt()))
                 }
             }
 
             NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> {
                 val on = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
                 if (on != lastDnd && Prefs.bool("fDnd")) {
-                    ctrl.post(ev("dnd", if (on) "Do Not Disturb on" else "Do Not Disturb off", "", R.drawable.ic_dnd, 0xFFBF5AF2.toInt()))
+                    ctrl.post(ev("dnd", if (on) t(R.string.evt_dnd_on) else t(R.string.evt_dnd_off), "", R.drawable.ic_dnd, 0xFFBF5AF2.toInt()))
                 }
                 lastDnd = on
             }
@@ -209,7 +212,7 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                 val v = i.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", 0)
                 val max = am.getStreamMaxVolume(st).coerceAtLeast(1)
                 val e = IslandEvent("volume", Kind.VOLUME)
-                e.title = if (st == AudioManager.STREAM_MUSIC) "Volume" else "Ringer"
+                e.title = if (st == AudioManager.STREAM_MUSIC) t(R.string.evt_volume) else t(R.string.evt_ringer)
                 e.iconRes = if (v == 0) R.drawable.ic_volume_off else R.drawable.ic_volume_up
                 e.progress = v.toFloat() / max
                 e.priority = 15

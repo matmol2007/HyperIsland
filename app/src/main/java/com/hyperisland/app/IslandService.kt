@@ -34,7 +34,6 @@ class IslandService : Service() {
         ch.setSound(null, null)
         if (Build.VERSION.SDK_INT >= 29) ch.setAllowBubbles(false)
         nm.createNotificationChannel(ch)
-        // Remove old louder channel if present
         try { nm.deleteNotificationChannel("island") } catch (e: Exception) { }
 
         val pi = PendingIntent.getActivity(
@@ -42,8 +41,8 @@ class IslandService : Service() {
         )
         val n = Notification.Builder(this, "island_quiet")
             .setSmallIcon(R.drawable.ic_island)
-            .setContentTitle("Hyper Island")
-            .setContentText("Active")
+            .setContentTitle(Lang.s(this, R.string.svc_title))
+            .setContentText(Lang.s(this, R.string.svc_text))
             .setContentIntent(pi)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
