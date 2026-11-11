@@ -21,6 +21,8 @@ class CallMonitor(private val ctx: Context) {
     private var cur: IslandEvent? = null
     private val green = 0xFF30D158.toInt()
 
+    private fun t(id: Int): String = Lang.s(ctx, id)
+
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
             try { handle(i) } catch (e: Exception) { }
@@ -46,7 +48,7 @@ class CallMonitor(private val ctx: Context) {
         } catch (e: Exception) { null }
     }
 
-    private fun display(): String = name ?: number ?: "Unknown number"
+    private fun display(): String = name ?: number ?: "Unknown"
 
     private fun handle(i: Intent) {
         if (!Prefs.bool("fCall")) return
@@ -75,7 +77,7 @@ class CallMonitor(private val ctx: Context) {
                 if (missed && Prefs.bool("fMissed")) {
                     val e = IslandEvent("missed", Kind.MESSAGE)
                     e.title = who
-                    e.subtitle = "Missed call"
+                    e.subtitle = t(R.string.evt_missed)
                     e.iconRes = R.drawable.ic_call
                     e.accent = 0xFFFF453A.toInt()
                     e.priority = 35
@@ -94,9 +96,10 @@ class CallMonitor(private val ctx: Context) {
     private fun post(ringing: Boolean) {
         val e = cur ?: IslandEvent("call", Kind.CALL)
         cur = e
+        // Sample compact: phone icon + contact name in the top pill
         e.title = display()
         e.ringing = ringing
-        e.subtitle = if (ringing) "Incoming call" else "On call"
+        e.subtitle = if (ringing) t(R.string.evt_incoming) else t(R.string.evt_on_call)
         e.iconRes = R.drawable.ic_call
         e.accent = green
         e.sticky = true
@@ -108,6 +111,8 @@ class CallMonitor(private val ctx: Context) {
         e.onAnswer = { answer() }
         e.onDecline = { decline() }
         e.tap = { dialer() }
+        // Auto-expand on ring so Answer/Decline show like the sample card
+        e.popup = ringing
         IslandRuntime.post(e)
     }
 

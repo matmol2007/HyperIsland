@@ -73,14 +73,34 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
         ctrl.remove("torch")
     }
 
-    private fun ev(key: String, title: String, sub: String, icon: Int, accent: Int = 0, progress: Float = -1f, right: String = ""): IslandEvent {
+    /**
+     * Sample-style system pills: short title in compact (icon + text),
+     * optional rightText for %, progress bar when expanded.
+     */
+    private fun ev(
+        key: String,
+        title: String,
+        sub: String,
+        icon: Int,
+        accent: Int = 0,
+        progress: Float = -1f,
+        right: String = "",
+        /** When true, compact shows title (not only %). Matches Silent/Battery saver samples. */
+        compactTitle: Boolean = true
+    ): IslandEvent {
         val e = IslandEvent(key, Kind.SYSTEM)
         e.title = title
         e.subtitle = sub
         e.iconRes = icon
         e.accent = accent
         e.progress = progress
-        e.rightText = right
+        // Prefer title on the pill like the sample; keep % as rightText for expanded
+        e.rightText = if (compactTitle) "" else right
+        if (!compactTitle && right.isNotEmpty()) e.rightText = right
+        // Store % in subtitle area when we want title-only compact but still show % expanded
+        if (compactTitle && right.isNotEmpty() && sub.isEmpty()) {
+            e.subtitle = right
+        }
         e.priority = 20
         e.ttlMs = Prefs.int("evtSec") * 1000L
         return e
@@ -105,6 +125,9 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                 val pl = i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
                 val now = pl != 0
                 val low = Prefs.int("lowPct")
+                val status = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                val fast = status == BatteryManager.BATTERY_STATUS_CHARGING && p < 80
+
                 if (plugged == -1 || initial) {
                     plugged = if (now) 1 else 0
                     lowFired = p <= low
@@ -116,31 +139,61 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                     lowFired = false
                     fullFired = p >= 100
                     if (Prefs.bool("fCharge")) {
-                        val kind = when {
-                            (pl and BatteryManager.BATTERY_PLUGGED_WIRELESS) != 0 -> t(R.string.evt_wireless)
-                            (pl and BatteryManager.BATTERY_PLUGGED_USB) != 0 -> t(R.string.evt_usb)
-                            else -> t(R.string.evt_charger)
-                        }
-                        ctrl.post(ev("charge", t(R.string.evt_charging), kind, R.drawable.ic_battery_charging, 0xFF30D158.toInt(), p / 100f, pct(p)))
+                        val title = if (fast) t(R.string.evt_quick_charge) else t(R.string.evt_charging)
+                        // Sample: "Quick charging" as title; % on the right when expanded
+                        val e = IslandEvent("charge", Kind.SYSTEM)
+                        e.title = title
+                        e.subtitle = pct(p)
+                        e.iconRes = R.drawable.ic_battery_charging
+                        e.accent = 0xFF30D158.toInt()
+                        e.progress = p / 100f
+                        e.rightText = pct(p)
+                        e.priority = 20
+                        e.ttlMs = Prefs.int("evtSec") * 1000L
+                        ctrl.post(e)
                     }
                 } else if (!now && plugged == 1) {
                     plugged = 0
                     if (Prefs.bool("fUnplug")) {
-                        ctrl.post(ev("charge", t(R.string.evt_unplugged), "", R.drawable.ic_battery, 0, p / 100f, pct(p)))
+                        val e = IslandEvent("charge", Kind.SYSTEM)
+                        e.title = t(R.string.evt_unplugged)
+                        e.subtitle = pct(p)
+                        e.iconRes = R.drawable.ic_battery
+                        e.progress = p / 100f
+                        e.rightText = pct(p)
+                        e.priority = 20
+                        e.ttlMs = Prefs.int("evtSec") * 1000L
+                        ctrl.post(e)
                     }
                 }
                 if (now) {
                     if (p >= 100 && !fullFired) {
                         fullFired = true
                         if (Prefs.bool("fFull")) {
-                            ctrl.post(ev("full", t(R.string.evt_fully_charged), t(R.string.evt_fully_sub), R.drawable.ic_battery_charging, 0xFF30D158.toInt(), 1f, pct(100)))
+                            val e = IslandEvent("full", Kind.SYSTEM)
+                            e.title = t(R.string.evt_fully_charged)
+                            e.subtitle = t(R.string.evt_fully_sub)
+                            e.iconRes = R.drawable.ic_battery_charging
+                            e.accent = 0xFF30D158.toInt()
+                            e.progress = 1f
+                            e.rightText = pct(100)
+                            e.priority = 20
+                            e.ttlMs = Prefs.int("evtSec") * 1000L
+                            ctrl.post(e)
                         }
                     }
                 } else {
                     if (p <= low && !lowFired) {
                         lowFired = true
                         if (Prefs.bool("fLow")) {
-                            val e = ev("low", t(R.string.evt_low_battery), t(R.string.evt_low_sub), R.drawable.ic_battery, 0xFFFF453A.toInt(), p / 100f, pct(p))
+                            val e = IslandEvent("low", Kind.SYSTEM)
+                            e.title = t(R.string.evt_low_battery)
+                            e.subtitle = t(R.string.evt_low_sub)
+                            e.iconRes = R.drawable.ic_battery
+                            e.accent = 0xFFFF453A.toInt()
+                            e.progress = p / 100f
+                            e.rightText = pct(p)
+                            e.priority = 20
                             e.ttlMs = 4000
                             ctrl.post(e)
                         }
@@ -152,11 +205,33 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
             AudioManager.RINGER_MODE_CHANGED_ACTION -> {
                 val m = am.ringerMode
                 if (m != lastRinger && Prefs.bool("fSilent")) {
+                    // Sample: "Silent mode is off" / on — title only in compact
                     val e = when (m) {
-                        AudioManager.RINGER_MODE_SILENT -> ev("ringer", t(R.string.evt_silent), t(R.string.evt_silent_sub), R.drawable.ic_volume_off, 0xFFFF9F0A.toInt())
-                        AudioManager.RINGER_MODE_VIBRATE -> ev("ringer", t(R.string.evt_vibrate), t(R.string.evt_vibrate_sub), R.drawable.ic_volume_off, 0xFFFF9F0A.toInt())
-                        else -> ev("ringer", t(R.string.evt_ringer_on), t(R.string.evt_ringer_on_sub), R.drawable.ic_volume_up, 0xFF30D158.toInt())
+                        AudioManager.RINGER_MODE_SILENT -> {
+                            val x = IslandEvent("ringer", Kind.SYSTEM)
+                            x.title = t(R.string.evt_silent)
+                            x.iconRes = R.drawable.ic_volume_off
+                            x.accent = 0xFFFF9F0A.toInt()
+                            x
+                        }
+                        AudioManager.RINGER_MODE_VIBRATE -> {
+                            val x = IslandEvent("ringer", Kind.SYSTEM)
+                            x.title = t(R.string.evt_vibrate)
+                            x.subtitle = t(R.string.evt_vibrate_sub)
+                            x.iconRes = R.drawable.ic_volume_off
+                            x.accent = 0xFFFF9F0A.toInt()
+                            x
+                        }
+                        else -> {
+                            val x = IslandEvent("ringer", Kind.SYSTEM)
+                            x.title = t(R.string.evt_silent_off)
+                            x.iconRes = R.drawable.ic_volume_up
+                            x.accent = 0xFF30D158.toInt()
+                            x
+                        }
                     }
+                    e.priority = 20
+                    e.ttlMs = Prefs.int("evtSec") * 1000L
                     ctrl.post(e)
                 }
                 lastRinger = m
@@ -165,7 +240,14 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
             PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> {
                 val on = pm.isPowerSaveMode
                 if (on != lastSaver && Prefs.bool("fSaver")) {
-                    ctrl.post(ev("saver", if (on) t(R.string.evt_saver_on) else t(R.string.evt_saver_off), "", R.drawable.ic_battery, if (on) 0xFFFFD60A.toInt() else 0))
+                    // Sample: yellow "Battery saver" title
+                    val e = IslandEvent("saver", Kind.SYSTEM)
+                    e.title = if (on) t(R.string.evt_saver_on) else t(R.string.evt_saver_off)
+                    e.iconRes = R.drawable.ic_battery
+                    e.accent = if (on) 0xFFFFD60A.toInt() else 0
+                    e.priority = 20
+                    e.ttlMs = Prefs.int("evtSec") * 1000L
+                    ctrl.post(e)
                 }
                 lastSaver = on
             }
@@ -173,14 +255,26 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
             Intent.ACTION_AIRPLANE_MODE_CHANGED -> {
                 if (Prefs.bool("fAirplane")) {
                     val on = i.getBooleanExtra("state", false)
-                    ctrl.post(ev("airplane", if (on) t(R.string.evt_airplane_on) else t(R.string.evt_airplane_off), "", R.drawable.ic_airplane, 0xFF64D2FF.toInt()))
+                    val e = IslandEvent("airplane", Kind.SYSTEM)
+                    e.title = if (on) t(R.string.evt_airplane_on) else t(R.string.evt_airplane_off)
+                    e.iconRes = R.drawable.ic_airplane
+                    e.accent = 0xFF64D2FF.toInt()
+                    e.priority = 20
+                    e.ttlMs = Prefs.int("evtSec") * 1000L
+                    ctrl.post(e)
                 }
             }
 
             Intent.ACTION_HEADSET_PLUG -> {
                 if (!initial && Prefs.bool("fHeadset")) {
                     val on = i.getIntExtra("state", 0) == 1
-                    ctrl.post(ev("headset", if (on) t(R.string.evt_headset_on) else t(R.string.evt_headset_off), "", R.drawable.ic_headphones, 0xFF0A84FF.toInt()))
+                    val e = IslandEvent("headset", Kind.SYSTEM)
+                    e.title = if (on) t(R.string.evt_headset_on) else t(R.string.evt_headset_off)
+                    e.iconRes = R.drawable.ic_headphones
+                    e.accent = 0xFF0A84FF.toInt()
+                    e.priority = 20
+                    e.ttlMs = Prefs.int("evtSec") * 1000L
+                    ctrl.post(e)
                 }
             }
 
@@ -193,14 +287,27 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                     if (d != null && major != null && major != BluetoothClass.Device.Major.AUDIO_VIDEO) return
                     val name = try { d?.name } catch (e: SecurityException) { null } ?: "Bluetooth"
                     val on = i.action == BluetoothDevice.ACTION_ACL_CONNECTED
-                    ctrl.post(ev("bt", if (on) t(R.string.evt_bt_on) else t(R.string.evt_bt_off), name, R.drawable.ic_headphones, 0xFF0A84FF.toInt()))
+                    val e = IslandEvent("bt", Kind.SYSTEM)
+                    e.title = if (on) t(R.string.evt_bt_on) else t(R.string.evt_bt_off)
+                    e.subtitle = name
+                    e.iconRes = R.drawable.ic_headphones
+                    e.accent = 0xFF0A84FF.toInt()
+                    e.priority = 20
+                    e.ttlMs = Prefs.int("evtSec") * 1000L
+                    ctrl.post(e)
                 }
             }
 
             NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> {
                 val on = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
                 if (on != lastDnd && Prefs.bool("fDnd")) {
-                    ctrl.post(ev("dnd", if (on) t(R.string.evt_dnd_on) else t(R.string.evt_dnd_off), "", R.drawable.ic_dnd, 0xFFBF5AF2.toInt()))
+                    val e = IslandEvent("dnd", Kind.SYSTEM)
+                    e.title = if (on) t(R.string.evt_dnd_on) else t(R.string.evt_dnd_off)
+                    e.iconRes = R.drawable.ic_dnd
+                    e.accent = 0xFFBF5AF2.toInt()
+                    e.priority = 20
+                    e.ttlMs = Prefs.int("evtSec") * 1000L
+                    ctrl.post(e)
                 }
                 lastDnd = on
             }
@@ -215,6 +322,7 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                 e.title = if (st == AudioManager.STREAM_MUSIC) t(R.string.evt_volume) else t(R.string.evt_ringer)
                 e.iconRes = if (v == 0) R.drawable.ic_volume_off else R.drawable.ic_volume_up
                 e.progress = v.toFloat() / max
+                e.rightText = "${(v * 100 / max)}%"
                 e.priority = 15
                 e.ttlMs = 1800
                 ctrl.post(e)
