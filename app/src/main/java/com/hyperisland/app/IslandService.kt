@@ -39,7 +39,8 @@ class IslandService : Service() {
         val pi = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
         )
-        val b = Notification.Builder(this, "island_quiet")
+        // Quiet foreground notification (no setSilent — not available on all compile targets)
+        val n = Notification.Builder(this, "island_quiet")
             .setSmallIcon(R.drawable.ic_island)
             .setContentTitle(Lang.s(this, R.string.svc_title))
             .setContentText(Lang.s(this, R.string.svc_text))
@@ -48,11 +49,8 @@ class IslandService : Service() {
             .setOnlyAlertOnce(true)
             .setSound(null)
             .setVibrate(null)
-        // setSilent is API 29+; keep the builder chain compatible with minSdk 26
-        if (Build.VERSION.SDK_INT >= 29) {
-            b.setSilent(true)
-        }
-        val n = b.build()
+            .setDefaults(0)
+            .build()
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
