@@ -119,7 +119,8 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                             (pl and BatteryManager.BATTERY_PLUGGED_USB) != 0 -> "USB"
                             else -> "Charger"
                         }
-                        ctrl.post(ev("charge", "Charging", kind, R.drawable.ic_bolt, 0xFF30D158.toInt(), p / 100f, pct(p)))
+                        // Use dedicated battery-charging icon instead of plain bolt
+                        ctrl.post(ev("charge", "Charging", kind, R.drawable.ic_battery_charging, 0xFF30D158.toInt(), p / 100f, pct(p)))
                     }
                 } else if (!now && plugged == 1) {
                     plugged = 0
@@ -130,7 +131,7 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
                 if (now) {
                     if (p >= 100 && !fullFired) {
                         fullFired = true
-                        if (Prefs.bool("fFull")) ctrl.post(ev("full", "Fully charged", "Unplug to save battery health", R.drawable.ic_battery, 0xFF30D158.toInt(), 1f, pct(100)))
+                        if (Prefs.bool("fFull")) ctrl.post(ev("full", "Fully charged", "Unplug to save battery health", R.drawable.ic_battery_charging, 0xFF30D158.toInt(), 1f, pct(100)))
                     }
                 } else {
                     if (p <= low && !lowFired) {
