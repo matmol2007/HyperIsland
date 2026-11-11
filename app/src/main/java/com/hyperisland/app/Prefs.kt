@@ -17,6 +17,7 @@ object Prefs {
         "animMs" to 480, "bounce" to 60,
         "hideLand" to true, "haptic" to true, "faDigits" to false,
         "msgSec" to 5, "evtSec" to 3, "popupTrack" to true, "hideMsgText" to false,
+        "suppressNotif" to true,
         "fMusic" to true, "fCall" to true, "fMissed" to true, "fMsg" to true, "catMsg" to true,
         "fLive" to true, "fTimer" to true, "fNav" to true, "fAlarm" to true,
         "fCharge" to true, "fUnplug" to false, "fFull" to true, "fLow" to true, "lowPct" to 15,
