@@ -1,16 +1,16 @@
 package com.hyperisland.app
 
 import android.content.Context
-import android.os.Build
+import android.graphics.drawable.GradientDrawable
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
 
 /**
- * نگهدارنده‌ی یگانه‌ی جزیره. چند «میزبان» می‌توانند آن را اجرا کنند:
- *  ۲ = سرویس دسترسی‌پذیری (ماندگارترین، بدون نیاز به مجوز Overlay)
- *  ۱ = سرویس پیش‌زمینه   ۰ = شنونده‌ی اعلان
- * میزبان با اولویت بالاتر جای پایین‌تر را می‌گیرد.
+ * Single holder of the island. Several "hosts" can run it:
+ *  2 = Accessibility service (most persistent, needs no overlay permission)
+ *  1 = Foreground service    0 = Notification listener
+ * A host with a higher priority replaces a lower one.
  */
 object IslandRuntime {
     lateinit var app: Context
@@ -51,7 +51,7 @@ object IslandRuntime {
         }
     }
 
-    /** اگر هیچ میزبانی نیست و مجوز Overlay هست، با Context داده‌شده یک میزبان می‌سازد. */
+    /** If no host is running and the overlay permission is granted, host the island with this context. */
     fun ensureHost(ctx: Context) {
         if (controller != null) return
         if (Settings.canDrawOverlays(ctx)) {
@@ -60,20 +60,20 @@ object IslandRuntime {
     }
 
     fun post(e: IslandEvent) {
-        if (Looper_isMain()) controller?.post(e) else mainHandler.post { controller?.post(e) }
+        if (isMain()) controller?.post(e) else mainHandler.post { controller?.post(e) }
     }
 
     fun remove(key: String) {
-        if (Looper_isMain()) controller?.remove(key) else mainHandler.post { controller?.remove(key) }
+        if (isMain()) controller?.remove(key) else mainHandler.post { controller?.remove(key) }
     }
 
-    private fun Looper_isMain() = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
+    private fun isMain() = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
 
     fun onForegroundPackage(pkg: String) { controller?.setForegroundPackage(pkg) }
 
     fun onCallNotification(title: String?) { callMonitor?.nameFromNotification(title) }
 
-    // ---------------- پیش‌نمایش و تست ----------------
+    // ---------------- preview & test ----------------
 
     fun setPreview(on: Boolean) {
         preview = on
@@ -82,48 +82,58 @@ object IslandRuntime {
 
     private fun postPreview() {
         val e = IslandEvent("_preview", Kind.LIVE)
-        e.title = "پیش‌نمایش جزیره"
-        e.subtitle = "تنظیمات را عوض کن؛ همین‌جا زنده می‌بینی"
+        e.title = "Island preview"
+        e.subtitle = "Change a setting and watch it update live"
         e.iconRes = R.drawable.ic_island
-        e.rightText = Fa.digits("12:34", Prefs.bool("faDigits"))
+        e.rightText = "LIVE"
         e.sticky = true
         e.popup = false
         e.priority = 1
         post(e)
     }
 
+    private fun gradient(c1: Int, c2: Int): GradientDrawable =
+        GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(c1, c2))
+
     fun demo(ctx: Context, what: String) {
         if (controller == null) ensureHost(ctx)
         if (controller == null) return
-        val fa = Prefs.bool("faDigits")
+        val now = SystemClock.elapsedRealtime()
         when (what) {
             "music" -> {
                 val e = IslandEvent("demo_music", Kind.MUSIC)
-                e.title = "آهنگ نمونه"
-                e.subtitle = "خواننده‌ی نمونه"
+                e.title = "Midnight Drive"
+                e.subtitle = "Neon Skyline"
                 e.iconRes = R.drawable.ic_music
+                e.avatar = gradient(0xFFFF375F.toInt(), 0xFF5E5CE6.toInt())
+                e.accent = 0xFFFF375F.toInt()
                 e.playing = true
+                e.durMs = 214_000L
+                e.posBase = 62_000L
+                e.posAt = now
                 e.sticky = true
                 e.priority = 41
-                e.ttlMs = 5000
+                e.ttlMs = 9000
                 e.reshow = true
                 post(e)
-                mainHandler.postDelayed({ remove("demo_music") }, 20000)
+                mainHandler.postDelayed({ remove("demo_music") }, 40000)
             }
             "message" -> {
                 val e = IslandEvent("demo_msg", Kind.MESSAGE)
-                e.title = "علی"
-                e.subtitle = "سلام! امشب میای بیرون؟ یه جای خوب سراغ دارم 😄"
+                e.title = "Alex"
+                e.subtitle = "Hey! Are you free tonight? I found a great place."
                 e.iconRes = R.drawable.ic_message
+                e.avatar = gradient(0xFF30D158.toInt(), 0xFF0A84FF.toInt())
                 e.priority = 30
                 e.ttlMs = Prefs.int("msgSec") * 1000L
                 post(e)
             }
             "call" -> {
                 val e = IslandEvent("demo_call", Kind.CALL)
-                e.title = "مامان"
-                e.subtitle = "تماس ورودی"
+                e.title = "Mom"
+                e.subtitle = "Incoming call"
                 e.iconRes = R.drawable.ic_call
+                e.avatar = gradient(0xFFFF9F0A.toInt(), 0xFFFF375F.toInt())
                 e.accent = 0xFF30D158.toInt()
                 e.ringing = true
                 e.sticky = true
@@ -136,35 +146,37 @@ object IslandRuntime {
             }
             "charge" -> {
                 val e = IslandEvent("demo_charge", Kind.SYSTEM)
-                e.title = "در حال شارژ"
-                e.subtitle = Fa.digits("67", fa) + "٪"
+                e.title = "Charging"
+                e.subtitle = "Fast charging"
                 e.iconRes = R.drawable.ic_bolt
                 e.accent = 0xFF30D158.toInt()
                 e.progress = 0.67f
+                e.rightText = "67%"
                 e.priority = 20
                 e.ttlMs = Prefs.int("evtSec") * 1000L
                 post(e)
             }
             "timer" -> {
                 val e = IslandEvent("demo_timer", Kind.LIVE)
-                e.title = "تایمر"
-                e.subtitle = "در حال شمارش معکوس"
+                e.title = "Timer"
+                e.subtitle = "Counting down"
                 e.iconRes = R.drawable.ic_timer
                 e.accent = 0xFFFF9F0A.toInt()
-                e.chronoBase = SystemClock.elapsedRealtime() + 90_000L
+                e.chronoBase = now + 90_000L
                 e.chronoDown = true
                 e.sticky = true
                 e.priority = 55
-                e.ttlMs = 3000
+                e.ttlMs = 4000
                 e.reshow = true
                 post(e)
                 mainHandler.postDelayed({ remove("demo_timer") }, 30000)
             }
             "volume" -> {
                 val e = IslandEvent("demo_vol", Kind.VOLUME)
-                e.title = "صدا"
+                e.title = "Volume"
                 e.iconRes = R.drawable.ic_volume_up
                 e.progress = 0.6f
+                e.rightText = "60%"
                 e.priority = 15
                 e.ttlMs = 1800
                 post(e)
