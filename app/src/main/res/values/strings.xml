@@ -3,13 +3,11 @@
     <string name="app_name">Hyper Island</string>
     <string name="a11y_desc">Shows the Dynamic Island overlay and keeps it alive in the background. This service does not read any text from your screen.</string>
 
-    <!-- Tabs -->
     <string name="tab_home">Home</string>
     <string name="tab_style">Style</string>
     <string name="tab_features">Features</string>
     <string name="tab_keepalive">Keep alive</string>
 
-    <!-- Home -->
     <string name="home_title">Hyper Island</string>
     <string name="home_sub">Dynamic Island for Android</string>
     <string name="island_enabled">Island enabled</string>
@@ -29,7 +27,6 @@
     <string name="btn_enable">Enable</string>
     <string name="btn_allow">Allow</string>
 
-    <!-- Style -->
     <string name="style_title">Style</string>
     <string name="style_sub">Look and feel of the island</string>
     <string name="size">Size</string>
@@ -62,7 +59,6 @@
     <string name="dir_ltr">LTR</string>
     <string name="dir_rtl">RTL</string>
 
-    <!-- Features -->
     <string name="features_title">Features</string>
     <string name="features_sub">What the island can show</string>
     <string name="music">Music</string>
@@ -91,21 +87,20 @@
     <string name="suppress_notif">Hide original notifications</string>
     <string name="suppress_notif_sub">Cancel system notifications when shown on the island</string>
 
-    <!-- Keep alive -->
     <string name="keepalive_title">Keep alive</string>
     <string name="keepalive_sub">Stop the system from killing Hyper Island</string>
 
-    <!-- Service notification -->
     <string name="svc_title">Hyper Island</string>
     <string name="svc_text">Active</string>
 
-    <!-- Island UI -->
     <string name="answer">Answer</string>
     <string name="decline">Decline</string>
     <string name="hang_up">Hang up</string>
+    <string name="mute">Mute</string>
+    <string name="speaker">Speaker</string>
 
-    <!-- System events -->
     <string name="evt_charging">Charging</string>
+    <string name="evt_quick_charge">Quick charging</string>
     <string name="evt_wireless">Wireless</string>
     <string name="evt_usb">USB</string>
     <string name="evt_charger">Charger</string>
@@ -114,13 +109,13 @@
     <string name="evt_fully_sub">Unplug to save battery health</string>
     <string name="evt_low_battery">Low battery</string>
     <string name="evt_low_sub">Plug in your charger soon</string>
-    <string name="evt_silent">Silent</string>
-    <string name="evt_silent_sub">Ringer is off</string>
+    <string name="evt_silent">Silent mode is on</string>
+    <string name="evt_silent_off">Silent mode is off</string>
     <string name="evt_vibrate">Vibrate</string>
     <string name="evt_vibrate_sub">Vibration only</string>
     <string name="evt_ringer_on">Ringer on</string>
     <string name="evt_ringer_on_sub">Sound is on</string>
-    <string name="evt_saver_on">Battery saver on</string>
+    <string name="evt_saver_on">Battery saver</string>
     <string name="evt_saver_off">Battery saver off</string>
     <string name="evt_airplane_on">Airplane mode on</string>
     <string name="evt_airplane_off">Airplane mode off</string>
@@ -134,6 +129,9 @@
     <string name="evt_torch_sub">Tap to turn off</string>
     <string name="evt_volume">Volume</string>
     <string name="evt_ringer">Ringer</string>
+    <string name="evt_incoming">Incoming call</string>
+    <string name="evt_on_call">On call</string>
+    <string name="evt_missed">Missed call</string>
 
     <string name="preview_title">Hyper Island</string>
     <string name="not_available">This screen is not available on your phone</string>

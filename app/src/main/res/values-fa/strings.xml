@@ -96,8 +96,11 @@
     <string name="answer">پاسخ</string>
     <string name="decline">رد</string>
     <string name="hang_up">قطع</string>
+    <string name="mute">بی‌صدا</string>
+    <string name="speaker">بلندگو</string>
 
     <string name="evt_charging">در حال شارژ</string>
+    <string name="evt_quick_charge">شارژ سریع</string>
     <string name="evt_wireless">بی‌سیم</string>
     <string name="evt_usb">USB</string>
     <string name="evt_charger">شارژر</string>
@@ -106,13 +109,13 @@
     <string name="evt_fully_sub">برای سلامت باتری جدا کنید</string>
     <string name="evt_low_battery">باتری ضعیف</string>
     <string name="evt_low_sub">به‌زودی شارژر را وصل کنید</string>
-    <string name="evt_silent">بی‌صدا</string>
-    <string name="evt_silent_sub">زنگ خاموش است</string>
+    <string name="evt_silent">حالت بی‌صدا روشن است</string>
+    <string name="evt_silent_off">حالت بی‌صدا خاموش است</string>
     <string name="evt_vibrate">ویبره</string>
     <string name="evt_vibrate_sub">فقط لرزش</string>
     <string name="evt_ringer_on">زنگ روشن</string>
     <string name="evt_ringer_on_sub">صدا فعال است</string>
-    <string name="evt_saver_on">صرفه‌جویی باتری روشن</string>
+    <string name="evt_saver_on">صرفه‌جویی باتری</string>
     <string name="evt_saver_off">صرفه‌جویی باتری خاموش</string>
     <string name="evt_airplane_on">حالت هواپیما روشن</string>
     <string name="evt_airplane_off">حالت هواپیما خاموش</string>
@@ -126,6 +129,9 @@
     <string name="evt_torch_sub">برای خاموش کردن لمس کنید</string>
     <string name="evt_volume">صدا</string>
     <string name="evt_ringer">زنگ</string>
+    <string name="evt_incoming">تماس ورودی</string>
+    <string name="evt_on_call">در حال مکالمه</string>
+    <string name="evt_missed">تماس ازدست‌رفته</string>
 
     <string name="preview_title">هایپر آیلند</string>
     <string name="not_available">این صفحه روی گوشی شما در دسترس نیست</string>
