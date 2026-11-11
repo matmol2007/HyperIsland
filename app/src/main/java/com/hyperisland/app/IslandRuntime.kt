@@ -51,7 +51,6 @@ object IslandRuntime {
         }
     }
 
-    /** If no host is running and the overlay permission is granted, host the island with this context. */
     fun ensureHost(ctx: Context) {
         if (controller != null) return
         if (Settings.canDrawOverlays(ctx)) {
@@ -73,22 +72,22 @@ object IslandRuntime {
 
     fun onCallNotification(title: String?) { callMonitor?.nameFromNotification(title) }
 
-    // ---------------- preview & test ----------------
-
     fun setPreview(on: Boolean) {
         preview = on
         if (on) postPreview() else remove("_preview")
     }
 
+    /** Compact, non-intrusive preview while the settings app is open. */
     private fun postPreview() {
-        val e = IslandEvent("_preview", Kind.LIVE)
-        e.title = "Island preview"
-        e.subtitle = "Change a setting and watch it update live"
+        val e = IslandEvent("_preview", Kind.SYSTEM)
+        e.title = "Hyper Island"
+        e.subtitle = ""
         e.iconRes = R.drawable.ic_island
-        e.rightText = "LIVE"
+        e.rightText = ""
         e.sticky = true
         e.popup = false
         e.priority = 1
+        e.ttlMs = 0
         post(e)
     }
 
@@ -148,7 +147,7 @@ object IslandRuntime {
                 val e = IslandEvent("demo_charge", Kind.SYSTEM)
                 e.title = "Charging"
                 e.subtitle = "Fast charging"
-                e.iconRes = R.drawable.ic_bolt
+                e.iconRes = R.drawable.ic_battery_charging
                 e.accent = 0xFF30D158.toInt()
                 e.progress = 0.67f
                 e.rightText = "67%"

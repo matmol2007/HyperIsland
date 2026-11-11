@@ -9,12 +9,13 @@ object Prefs {
 
     private val D: Map<String, Any> = mapOf(
         "enabled" to true,
-        "compactW" to 150, "compactH" to 34, "expandW" to 350,
-        "radius" to 30, "yOff" to 4, "xOff" to 0, "scale" to 100,
-        "bg" to 0xFF000000.toInt(), "opacity" to 100,
+        // Slightly taller/wider compact pill + more top offset so it clears the punch-hole camera
+        "compactW" to 156, "compactH" to 36, "expandW" to 360,
+        "radius" to 32, "yOff" to 12, "xOff" to 0, "scale" to 100,
+        "bg" to 0xFF000000.toInt(), "opacity" to 96,
         "accent" to 0xFF0A84FF.toInt(), "text" to 0xFFFFFFFF.toInt(),
-        "glow" to false, "ambient" to true, "dynAccent" to true, "layoutDir" to 1,
-        "animMs" to 480, "bounce" to 60,
+        "glow" to true, "ambient" to true, "dynAccent" to true, "layoutDir" to 1,
+        "animMs" to 420, "bounce" to 55,
         "hideLand" to true, "haptic" to true, "faDigits" to false,
         "msgSec" to 5, "evtSec" to 3, "popupTrack" to true, "hideMsgText" to false,
         "suppressNotif" to true,
@@ -58,6 +59,11 @@ object Prefs {
         if (!prefs.contains("notifApps")) e.putStringSet("notifApps", HashSet(knownMessengers))
         if (!prefs.contains("liveApps")) e.putStringSet("liveApps", HashSet(knownLive))
         if (!prefs.contains("hiddenApps")) e.putStringSet("hiddenApps", HashSet<String>())
+        // One-time bump of yOff for users who still have the old too-low default
+        if (!prefs.contains("_notchBump")) {
+            if (prefs.getInt("yOff", 4) <= 6) e.putInt("yOff", 12)
+            e.putBoolean("_notchBump", true)
+        }
         e.apply()
     }
 
@@ -73,7 +79,7 @@ object Prefs {
                 .putInt("compactW", cw).putInt("compactH", ch)
         }
         when (i) {
-            0 -> c(0xFF000000, 0xFF0A84FF, 0xFFFFFFFF, 100, false, 30, 150, 34)
+            0 -> c(0xFF000000, 0xFF0A84FF, 0xFFFFFFFF, 96, true, 32, 156, 36)
             1 -> c(0xFF000000, 0xFF30D158, 0xFFFFFFFF, 100, true, 32, 160, 36)
             2 -> c(0xFF1C1C1E, 0xFF64D2FF, 0xFFFFFFFF, 78, true, 34, 150, 34)
             3 -> c(0xFF0A0014, 0xFFBF5AF2, 0xFFFFFFFF, 100, true, 30, 150, 34)
