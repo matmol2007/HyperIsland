@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">هایپر آیلند</string>
+    <string name="a11y_desc">جزیره پویا را نمایش می‌دهد و در پس‌زمینه زنده نگه می‌دارد. این سرویس متن صفحه را نمی‌خواند.</string>
+
+    <string name="tab_home">خانه</string>
+    <string name="tab_style">ظاهر</string>
+    <string name="tab_features">قابلیت‌ها</string>
+    <string name="tab_keepalive">زنده نگه داشتن</string>
+
+    <string name="home_title">هایپر آیلند</string>
+    <string name="home_sub">جزیره پویا برای اندروید</string>
+    <string name="island_enabled">فعال بودن جزیره</string>
+    <string name="island_enabled_sub">روشن یا خاموش کردن کل جزیره</string>
+    <string name="setup">راه‌اندازی</string>
+    <string name="setup_footer">دو مورد اول را فعال کنید. دسترسی شناور اختیاری است اگر دسترسی‌پذیری روشن باشد.</string>
+    <string name="a11y_service">سرویس دسترسی‌پذیری</string>
+    <string name="a11y_service_sub">میزبانی جزیره و زنده نگه‌داشتن آن</string>
+    <string name="notif_access">دسترسی اعلان‌ها</string>
+    <string name="notif_access_sub">موسیقی، پیام، تایمر و فعالیت زنده</string>
+    <string name="overlay_perm">نمایش روی برنامه‌ها</string>
+    <string name="overlay_perm_sub">میزبان پشتیبان (اختیاری)</string>
+    <string name="phone_perm">تلفن و مخاطبین</string>
+    <string name="phone_perm_sub">نام تماس‌گیرنده، پاسخ و قطع</string>
+    <string name="battery_unrestricted">باتری بدون محدودیت</string>
+    <string name="battery_unrestricted_sub">جلوگیری از کشته شدن جزیره توسط سیستم</string>
+    <string name="btn_enable">فعال کردن</string>
+    <string name="btn_allow">اجازه دادن</string>
+
+    <string name="style_title">ظاهر</string>
+    <string name="style_sub">ظاهر و حس جزیره</string>
+    <string name="size">اندازه</string>
+    <string name="overall_scale">مقیاس کلی</string>
+    <string name="compact_width">عرض جمع‌وجور</string>
+    <string name="compact_height">ارتفاع جمع‌وجور</string>
+    <string name="expand_width">عرض بازشده</string>
+    <string name="corner_radius">گردی گوشه</string>
+    <string name="distance_top">فاصله از بالا</string>
+    <string name="horizontal_offset">جابجایی افقی</string>
+    <string name="colors">رنگ‌ها</string>
+    <string name="background">پس‌زمینه</string>
+    <string name="accent_color">رنگ تأکیدی</string>
+    <string name="text_color">متن</string>
+    <string name="opacity">شفافیت</string>
+    <string name="effects">افکت‌ها</string>
+    <string name="soft_glow">درخشش نرم</string>
+    <string name="ambient_light">نور محیطی</string>
+    <string name="dynamic_accent">رنگ پویا</string>
+    <string name="animation">انیمیشن</string>
+    <string name="anim_duration">مدت انیمیشن</string>
+    <string name="bounce">جهش</string>
+    <string name="presets">پیش‌فرض‌ها</string>
+    <string name="language">زبان</string>
+    <string name="lang_auto">خودکار</string>
+    <string name="lang_en">انگلیسی</string>
+    <string name="lang_fa">فارسی</string>
+    <string name="layout_direction">جهت چیدمان</string>
+    <string name="dir_auto">خودکار</string>
+    <string name="dir_ltr">چپ‌به‌راست</string>
+    <string name="dir_rtl">راست‌به‌چپ</string>
+
+    <string name="features_title">قابلیت‌ها</string>
+    <string name="features_sub">آنچه جزیره می‌تواند نشان دهد</string>
+    <string name="music">موسیقی</string>
+    <string name="calls">تماس‌ها</string>
+    <string name="missed_calls">تماس ازدست‌رفته</string>
+    <string name="messages">پیام‌ها</string>
+    <string name="live_activities">فعالیت زنده</string>
+    <string name="timers">تایمرها</string>
+    <string name="navigation">مسیریابی</string>
+    <string name="alarms">زنگ‌ها</string>
+    <string name="charging">شارژ</string>
+    <string name="unplug">جدا شدن شارژر</string>
+    <string name="fully_charged">شارژ کامل</string>
+    <string name="low_battery">باتری ضعیف</string>
+    <string name="ringer_mode">حالت زنگ</string>
+    <string name="airplane_mode">حالت هواپیما</string>
+    <string name="do_not_disturb">مزاحم نشوید</string>
+    <string name="flashlight">چراغ‌قوه</string>
+    <string name="headphones">هدفون</string>
+    <string name="bluetooth_audio">صدای بلوتوث</string>
+    <string name="volume_hud">نمایش صدا</string>
+    <string name="volume_hud_sub">نمایش تغییر صدا روی جزیره</string>
+    <string name="system_event_time">مدت رویداد سیستم</string>
+    <string name="low_battery_threshold">آستانه باتری ضعیف</string>
+    <string name="message_time">مدت نمایش پیام</string>
+    <string name="suppress_notif">مخفی کردن اعلان اصلی</string>
+    <string name="suppress_notif_sub">وقتی روی جزیره آمد، اعلان سیستم لغو شود</string>
+
+    <string name="keepalive_title">زنده نگه داشتن</string>
+    <string name="keepalive_sub">جلوگیری از کشته شدن هایپر آیلند توسط سیستم</string>
+
+    <string name="svc_title">هایپر آیلند</string>
+    <string name="svc_text">فعال</string>
+
+    <string name="answer">پاسخ</string>
+    <string name="decline">رد</string>
+    <string name="hang_up">قطع</string>
+
+    <string name="evt_charging">در حال شارژ</string>
+    <string name="evt_wireless">بی‌سیم</string>
+    <string name="evt_usb">USB</string>
+    <string name="evt_charger">شارژر</string>
+    <string name="evt_unplugged">شارژر جدا شد</string>
+    <string name="evt_fully_charged">شارژ کامل شد</string>
+    <string name="evt_fully_sub">برای سلامت باتری جدا کنید</string>
+    <string name="evt_low_battery">باتری ضعیف</string>
+    <string name="evt_low_sub">به‌زودی شارژر را وصل کنید</string>
+    <string name="evt_silent">بی‌صدا</string>
+    <string name="evt_silent_sub">زنگ خاموش است</string>
+    <string name="evt_vibrate">ویبره</string>
+    <string name="evt_vibrate_sub">فقط لرزش</string>
+    <string name="evt_ringer_on">زنگ روشن</string>
+    <string name="evt_ringer_on_sub">صدا فعال است</string>
+    <string name="evt_saver_on">صرفه‌جویی باتری روشن</string>
+    <string name="evt_saver_off">صرفه‌جویی باتری خاموش</string>
+    <string name="evt_airplane_on">حالت هواپیما روشن</string>
+    <string name="evt_airplane_off">حالت هواپیما خاموش</string>
+    <string name="evt_headset_on">هدفون وصل شد</string>
+    <string name="evt_headset_off">هدفون جدا شد</string>
+    <string name="evt_bt_on">متصل شد</string>
+    <string name="evt_bt_off">قطع شد</string>
+    <string name="evt_dnd_on">مزاحم نشوید روشن</string>
+    <string name="evt_dnd_off">مزاحم نشوید خاموش</string>
+    <string name="evt_torch_on">چراغ‌قوه روشن است</string>
+    <string name="evt_torch_sub">برای خاموش کردن لمس کنید</string>
+    <string name="evt_volume">صدا</string>
+    <string name="evt_ringer">زنگ</string>
+
+    <string name="preview_title">هایپر آیلند</string>
+    <string name="not_available">این صفحه روی گوشی شما در دسترس نیست</string>
+</resources>

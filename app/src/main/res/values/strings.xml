@@ -1,4 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Hyper Island</string>
     <string name="a11y_desc">Shows the Dynamic Island overlay and keeps it alive in the background. This service does not read any text from your screen.</string>
+
+    <!-- Tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_style">Style</string>
+    <string name="tab_features">Features</string>
+    <string name="tab_keepalive">Keep alive</string>
+
+    <!-- Home -->
+    <string name="home_title">Hyper Island</string>
+    <string name="home_sub">Dynamic Island for Android</string>
+    <string name="island_enabled">Island enabled</string>
+    <string name="island_enabled_sub">Turn the whole island on or off</string>
+    <string name="setup">Setup</string>
+    <string name="setup_footer">Enable the first two to get started. Overlay is optional if Accessibility is on.</string>
+    <string name="a11y_service">Accessibility service</string>
+    <string name="a11y_service_sub">Hosts the island and keeps it alive</string>
+    <string name="notif_access">Notification access</string>
+    <string name="notif_access_sub">Music, messages, timers and live activities</string>
+    <string name="overlay_perm">Display over other apps</string>
+    <string name="overlay_perm_sub">Optional fallback host</string>
+    <string name="phone_perm">Phone and contacts</string>
+    <string name="phone_perm_sub">Caller names, answer and decline</string>
+    <string name="battery_unrestricted">Battery unrestricted</string>
+    <string name="battery_unrestricted_sub">Prevents the system from killing the island</string>
+    <string name="btn_enable">Enable</string>
+    <string name="btn_allow">Allow</string>
+
+    <!-- Style -->
+    <string name="style_title">Style</string>
+    <string name="style_sub">Look and feel of the island</string>
+    <string name="size">Size</string>
+    <string name="overall_scale">Overall scale</string>
+    <string name="compact_width">Compact width</string>
+    <string name="compact_height">Compact height</string>
+    <string name="expand_width">Expanded width</string>
+    <string name="corner_radius">Corner radius</string>
+    <string name="distance_top">Distance from top</string>
+    <string name="horizontal_offset">Horizontal offset</string>
+    <string name="colors">Colors</string>
+    <string name="background">Background</string>
+    <string name="accent_color">Accent</string>
+    <string name="text_color">Text</string>
+    <string name="opacity">Opacity</string>
+    <string name="effects">Effects</string>
+    <string name="soft_glow">Soft glow</string>
+    <string name="ambient_light">Ambient light</string>
+    <string name="dynamic_accent">Dynamic accent</string>
+    <string name="animation">Animation</string>
+    <string name="anim_duration">Animation duration</string>
+    <string name="bounce">Bounce</string>
+    <string name="presets">Presets</string>
+    <string name="language">Language</string>
+    <string name="lang_auto">Auto</string>
+    <string name="lang_en">English</string>
+    <string name="lang_fa">Persian</string>
+    <string name="layout_direction">Layout direction</string>
+    <string name="dir_auto">Auto</string>
+    <string name="dir_ltr">LTR</string>
+    <string name="dir_rtl">RTL</string>
+
+    <!-- Features -->
+    <string name="features_title">Features</string>
+    <string name="features_sub">What the island can show</string>
+    <string name="music">Music</string>
+    <string name="calls">Calls</string>
+    <string name="missed_calls">Missed calls</string>
+    <string name="messages">Messages</string>
+    <string name="live_activities">Live activities</string>
+    <string name="timers">Timers</string>
+    <string name="navigation">Navigation</string>
+    <string name="alarms">Alarms</string>
+    <string name="charging">Charging</string>
+    <string name="unplug">Unplug</string>
+    <string name="fully_charged">Fully charged</string>
+    <string name="low_battery">Low battery</string>
+    <string name="ringer_mode">Ringer mode</string>
+    <string name="airplane_mode">Airplane mode</string>
+    <string name="do_not_disturb">Do Not Disturb</string>
+    <string name="flashlight">Flashlight</string>
+    <string name="headphones">Headphones</string>
+    <string name="bluetooth_audio">Bluetooth audio</string>
+    <string name="volume_hud">Volume HUD</string>
+    <string name="volume_hud_sub">Show volume changes on the island</string>
+    <string name="system_event_time">System event time</string>
+    <string name="low_battery_threshold">Low battery threshold</string>
+    <string name="message_time">Message display time</string>
+    <string name="suppress_notif">Hide original notifications</string>
+    <string name="suppress_notif_sub">Cancel system notifications when shown on the island</string>
+
+    <!-- Keep alive -->
+    <string name="keepalive_title">Keep alive</string>
+    <string name="keepalive_sub">Stop the system from killing Hyper Island</string>
+
+    <!-- Service notification -->
+    <string name="svc_title">Hyper Island</string>
+    <string name="svc_text">Active</string>
+
+    <!-- Island UI -->
+    <string name="answer">Answer</string>
+    <string name="decline">Decline</string>
+    <string name="hang_up">Hang up</string>
+
+    <!-- System events -->
+    <string name="evt_charging">Charging</string>
+    <string name="evt_wireless">Wireless</string>
+    <string name="evt_usb">USB</string>
+    <string name="evt_charger">Charger</string>
+    <string name="evt_unplugged">Charger unplugged</string>
+    <string name="evt_fully_charged">Fully charged</string>
+    <string name="evt_fully_sub">Unplug to save battery health</string>
+    <string name="evt_low_battery">Low battery</string>
+    <string name="evt_low_sub">Plug in your charger soon</string>
+    <string name="evt_silent">Silent</string>
+    <string name="evt_silent_sub">Ringer is off</string>
+    <string name="evt_vibrate">Vibrate</string>
+    <string name="evt_vibrate_sub">Vibration only</string>
+    <string name="evt_ringer_on">Ringer on</string>
+    <string name="evt_ringer_on_sub">Sound is on</string>
+    <string name="evt_saver_on">Battery saver on</string>
+    <string name="evt_saver_off">Battery saver off</string>
+    <string name="evt_airplane_on">Airplane mode on</string>
+    <string name="evt_airplane_off">Airplane mode off</string>
+    <string name="evt_headset_on">Headphones connected</string>
+    <string name="evt_headset_off">Headphones disconnected</string>
+    <string name="evt_bt_on">Connected</string>
+    <string name="evt_bt_off">Disconnected</string>
+    <string name="evt_dnd_on">Do Not Disturb on</string>
+    <string name="evt_dnd_off">Do Not Disturb off</string>
+    <string name="evt_torch_on">Flashlight is on</string>
+    <string name="evt_torch_sub">Tap to turn off</string>
+    <string name="evt_volume">Volume</string>
+    <string name="evt_ringer">Ringer</string>
+
+    <string name="preview_title">Hyper Island</string>
+    <string name="not_available">This screen is not available on your phone</string>
 </resources>
