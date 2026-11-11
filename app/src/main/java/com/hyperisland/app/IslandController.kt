@@ -50,7 +50,8 @@ class IslandController(
     private var tw = -1
     private var th = -1
     private var texp = false
-    private val slack = dp(28)
+    // Extra room so spring overshoot and inner padding never clip titles/controls
+    private val slack = dp(40)
 
     private var landscape = false
     private var appHidden = false
@@ -94,8 +95,6 @@ class IslandController(
     fun snapshot(): List<IslandEvent> = sticky.values.toList()
     fun restore(list: List<IslandEvent>) { for (e in list) { sticky[e.key] = e }; refresh() }
 
-    // ---------------- events API ----------------
-
     fun post(e: IslandEvent) {
         if (e.sticky) {
             val isNew = !sticky.containsKey(e.key)
@@ -136,8 +135,6 @@ class IslandController(
         val h = pkg in Prefs.strSet("hiddenApps")
         if (h != appHidden) { appHidden = h; refresh() }
     }
-
-    // ---------------- display ----------------
 
     private fun onPrefsChanged() {
         view.applyStyle()
@@ -227,11 +224,13 @@ class IslandController(
         animator?.cancel()
         val a1 = if (exp) 1f else 0f
         if (instant || !attached) {
-            setWindow(w, h)
+            setWindow(w + slack, h + slack)
             setPill(w.toFloat(), h.toFloat(), r, a1)
+            // After settle, shrink window to content + small margin so nothing clips
+            setWindow(w + dp(8), h + dp(8))
             return
         }
-        // grow the window once (with slack for the spring overshoot); shrink it once at the end
+        // Grow window with slack during spring; settle to content size at the end
         setWindow(maxOf(lp.width, w + slack), maxOf(lp.height, h + slack))
         val w0 = pillW
         val h0 = pillH
@@ -252,7 +251,7 @@ class IslandController(
             override fun onAnimationEnd(animation: Animator) {
                 if (cancelled) return
                 setPill(w.toFloat(), h.toFloat(), r, a1)
-                setWindow(w, h)
+                setWindow(w + dp(8), h + dp(8))
             }
         })
         animator = va
@@ -276,8 +275,6 @@ class IslandController(
         attached = false
         tw = -1
     }
-
-    // ---------------- gestures ----------------
 
     private fun expand(e: IslandEvent, ms: Long) {
         popup = e
