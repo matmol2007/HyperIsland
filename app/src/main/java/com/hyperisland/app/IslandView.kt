@@ -145,6 +145,7 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         cIcon.scaleType = ImageView.ScaleType.CENTER_CROP
         cText.maxLines = 1
         cText.typeface = Typeface.DEFAULT_BOLD
+        cText.ellipsize = TextUtils.TruncateAt.END
         compact.addView(cIcon)
         compact.addView(cSpacer, LinearLayout.LayoutParams(0, 1, 1f))
         compact.addView(cEq)
@@ -559,7 +560,10 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
                 if (du != lastDur) { lastDur = du; durTv.text = du }
             }
         } else {
-            val compactLabel = if (rt.isNotEmpty()) rt else e.title
+            val compactLabel = when (e.kind) {
+                Kind.SYSTEM, Kind.CALL, Kind.MESSAGE, Kind.LIVE -> e.title
+                else -> if (rt.isNotEmpty()) rt else e.title
+            }
             if (compactLabel != lastRt) {
                 lastRt = compactLabel
                 rightTv.text = rt
