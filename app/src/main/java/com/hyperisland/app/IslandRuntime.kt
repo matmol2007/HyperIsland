@@ -6,12 +6,6 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
 
-/**
- * Single holder of the island. Several "hosts" can run it:
- *  2 = Accessibility service (most persistent, needs no overlay permission)
- *  1 = Foreground service    0 = Notification listener
- * A host with a higher priority replaces a lower one.
- */
 object IslandRuntime {
     lateinit var app: Context
     var controller: IslandController? = null
@@ -77,10 +71,9 @@ object IslandRuntime {
         if (on) postPreview() else remove("_preview")
     }
 
-    /** Compact, non-intrusive preview while the settings app is open. */
     private fun postPreview() {
         val e = IslandEvent("_preview", Kind.SYSTEM)
-        e.title = "Hyper Island"
+        e.title = Lang.s(app, R.string.preview_title)
         e.subtitle = ""
         e.iconRes = R.drawable.ic_island
         e.rightText = ""
@@ -120,7 +113,7 @@ object IslandRuntime {
             "message" -> {
                 val e = IslandEvent("demo_msg", Kind.MESSAGE)
                 e.title = "Alex"
-                e.subtitle = "Hey! Are you free tonight? I found a great place."
+                e.subtitle = "Hey! Are you free tonight?"
                 e.iconRes = R.drawable.ic_message
                 e.avatar = gradient(0xFF30D158.toInt(), 0xFF0A84FF.toInt())
                 e.priority = 30
@@ -130,7 +123,7 @@ object IslandRuntime {
             "call" -> {
                 val e = IslandEvent("demo_call", Kind.CALL)
                 e.title = "Mom"
-                e.subtitle = "Incoming call"
+                e.subtitle = if (Lang.isFa()) "تماس ورودی" else "Incoming call"
                 e.iconRes = R.drawable.ic_call
                 e.avatar = gradient(0xFFFF9F0A.toInt(), 0xFFFF375F.toInt())
                 e.accent = 0xFF30D158.toInt()
@@ -145,8 +138,8 @@ object IslandRuntime {
             }
             "charge" -> {
                 val e = IslandEvent("demo_charge", Kind.SYSTEM)
-                e.title = "Charging"
-                e.subtitle = "Fast charging"
+                e.title = Lang.s(ctx, R.string.evt_charging)
+                e.subtitle = Lang.s(ctx, R.string.evt_charger)
                 e.iconRes = R.drawable.ic_battery_charging
                 e.accent = 0xFF30D158.toInt()
                 e.progress = 0.67f
@@ -157,8 +150,8 @@ object IslandRuntime {
             }
             "timer" -> {
                 val e = IslandEvent("demo_timer", Kind.LIVE)
-                e.title = "Timer"
-                e.subtitle = "Counting down"
+                e.title = if (Lang.isFa()) "تایمر" else "Timer"
+                e.subtitle = if (Lang.isFa()) "در حال شمارش" else "Counting down"
                 e.iconRes = R.drawable.ic_timer
                 e.accent = 0xFFFF9F0A.toInt()
                 e.chronoBase = now + 90_000L
@@ -172,7 +165,7 @@ object IslandRuntime {
             }
             "volume" -> {
                 val e = IslandEvent("demo_vol", Kind.VOLUME)
-                e.title = "Volume"
+                e.title = Lang.s(ctx, R.string.evt_volume)
                 e.iconRes = R.drawable.ic_volume_up
                 e.progress = 0.6f
                 e.rightText = "60%"

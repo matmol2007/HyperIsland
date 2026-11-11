@@ -9,7 +9,7 @@ object Prefs {
 
     private val D: Map<String, Any> = mapOf(
         "enabled" to true,
-        // Slightly taller/wider compact pill + more top offset so it clears the punch-hole camera
+        "lang" to 0,
         "compactW" to 156, "compactH" to 36, "expandW" to 360,
         "radius" to 32, "yOff" to 12, "xOff" to 0, "scale" to 100,
         "bg" to 0xFF000000.toInt(), "opacity" to 96,
@@ -34,8 +34,8 @@ object Prefs {
         }
     }
 
-    fun int(k: String): Int = prefs.getInt(k, D[k] as Int)
-    fun bool(k: String): Boolean = prefs.getBoolean(k, D[k] as Boolean)
+    fun int(k: String): Int = prefs.getInt(k, (D[k] as? Int) ?: 0)
+    fun bool(k: String): Boolean = prefs.getBoolean(k, (D[k] as? Boolean) ?: false)
     fun setInt(k: String, v: Int) { prefs.edit().putInt(k, v).apply() }
     fun setBool(k: String, v: Boolean) { prefs.edit().putBoolean(k, v).apply() }
     fun strSet(k: String): Set<String> = prefs.getStringSet(k, emptySet()) ?: emptySet()
@@ -59,7 +59,6 @@ object Prefs {
         if (!prefs.contains("notifApps")) e.putStringSet("notifApps", HashSet(knownMessengers))
         if (!prefs.contains("liveApps")) e.putStringSet("liveApps", HashSet(knownLive))
         if (!prefs.contains("hiddenApps")) e.putStringSet("hiddenApps", HashSet<String>())
-        // One-time bump of yOff for users who still have the old too-low default
         if (!prefs.contains("_notchBump")) {
             if (prefs.getInt("yOff", 4) <= 6) e.putInt("yOff", 12)
             e.putBoolean("_notchBump", true)
