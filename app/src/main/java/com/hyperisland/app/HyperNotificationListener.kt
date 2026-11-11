@@ -71,6 +71,14 @@ class HyperNotificationListener : NotificationListenerService() {
         }
     }
 
+    /** Cancel the original status-bar notification so it only appears on the island. */
+    private fun suppressOriginal(sbn: StatusBarNotification) {
+        if (!Prefs.bool("suppressNotif")) return
+        try {
+            cancelNotification(sbn.key)
+        } catch (e: Exception) { }
+    }
+
     private fun handle(sbn: StatusBarNotification, initial: Boolean) {
         val pkg = sbn.packageName
         if (pkg == packageName || pkg == "android" || pkg == "com.android.systemui") return
@@ -110,6 +118,7 @@ class HyperNotificationListener : NotificationListenerService() {
             e.priority = 50
             e.ttlMs = 10000
             IslandRuntime.post(e)
+            suppressOriginal(sbn)
         } else if (!ongoing && !initial && Prefs.bool("fMsg") &&
             (pkg in Prefs.strSet("notifApps") || (Prefs.bool("catMsg") && cat == Notification.CATEGORY_MESSAGE))
         ) {
@@ -124,6 +133,8 @@ class HyperNotificationListener : NotificationListenerService() {
             e.priority = 30
             e.ttlMs = Prefs.int("msgSec") * 1000L
             IslandRuntime.post(e)
+            // Hide the normal phone notification so it only lives on the island
+            suppressOriginal(sbn)
         }
     }
 
