@@ -533,6 +533,13 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
             invalidate()
         }
 
+        val eh = expandedHeightPx(e)
+        val elp = expanded.layoutParams
+        if (elp != null && elp.height != eh) {
+            elp.height = eh
+            expanded.layoutParams = elp
+        }
+
         if (e.title != lastTitle) { lastTitle = e.title; titleTv.text = e.title }
         if (e.subtitle != lastSub) { lastSub = e.subtitle; subTv.text = e.subtitle }
         subTv.visibility = if (e.subtitle.isEmpty()) View.GONE else View.VISIBLE
