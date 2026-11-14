@@ -23,7 +23,8 @@ object Prefs {
         "fLive" to true, "fTimer" to true, "fNav" to true, "fAlarm" to true,
         "fCharge" to true, "fUnplug" to false, "fFull" to true, "fLow" to true, "lowPct" to 15,
         "fSilent" to true, "fSaver" to true, "fAirplane" to true,
-        "fHeadset" to true, "fBt" to true, "fDnd" to true, "fFlash" to true, "fVolume" to false
+        "fHeadset" to true, "fBt" to true, "fDnd" to true, "fFlash" to true, "fVolume" to false,
+        "fRecord" to true, "fTrack" to true, "multi" to true, "font" to 0, "glass" to false
     )
 
     fun init(ctx: Context) {
@@ -75,7 +76,7 @@ object Prefs {
         fun c(bg: Long, acc: Long, txt: Long, op: Int, glow: Boolean, rad: Int, cw: Int, ch: Int) {
             e.putInt("bg", bg.toInt()).putInt("accent", acc.toInt()).putInt("text", txt.toInt())
                 .putInt("opacity", op).putBoolean("glow", glow).putInt("radius", rad)
-                .putInt("compactW", cw).putInt("compactH", ch)
+                .putInt("compactW", cw).putInt("compactH", ch).putBoolean("glass", i == 2)
         }
         when (i) {
             0 -> c(0xFF000000, 0xFF0A84FF, 0xFFFFFFFF, 96, true, 32, 156, 36)

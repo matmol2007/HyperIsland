@@ -49,6 +49,31 @@ class HyperNotificationListener : NotificationListenerService() {
         IslandRuntime.remove(key)
     }
 
+    private class Track(val icon: Int, val accent: Int)
+
+    /** Guess food / parcel / flight / ride tracking from the package name and the notification text (fa + en). */
+    private fun classify(pkg: String, title: String?, text: String?): Track? {
+        val p = pkg.lowercase()
+        val t = ((title ?: "") + " " + (text ?: "")).lowercase()
+        fun any(vararg k: String) = k.any { t.contains(it) }
+        fun pk(vararg k: String) = k.any { p.contains(it) }
+        val flight = Track(R.drawable.ic_flight, 0xFF64D2FF.toInt())
+        val taxi = Track(R.drawable.ic_taxi, 0xFFFFD60A.toInt())
+        val food = Track(R.drawable.ic_food, 0xFFFF9F0A.toInt())
+        val parcel = Track(R.drawable.ic_package, 0xFFBF5AF2.toInt())
+        return when {
+            pk("flightradar", "flightaware", "alibaba", "mrbilit", "flytoday", "skyscanner") ||
+                any("پرواز", "فرودگاه", "boarding", "flight", "gate ") -> flight
+            pk("food", "snappfood", "delino", "talabat", "ubereats", "doordash") ||
+                any("پیک", "رستوران", "غذا", "courier", "restaurant", "your food", "food order") -> food
+            pk("snapp", "tap30", "tapsi", "uber", "lyft", "bolt", "maxim", "carpino") ||
+                any("راننده", "تاکسی", "ماشین شما", "your driver", "driver is", "your ride", "pickup") -> taxi
+            pk("digikala", "post", "tipax", "chapar", "mahex", "ups", "dhl", "fedex", "aliexpress") ||
+                any("مرسوله", "بسته", "رهگیری", "پست", "parcel", "package", "shipment", "tracking", "delivered") -> parcel
+            else -> null
+        }
+    }
+
     private fun appLabel(pkg: String): String = try {
         packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
     } catch (e: Exception) { pkg }
@@ -103,7 +128,20 @@ class HyperNotificationListener : NotificationListenerService() {
         val hasProg = pMax > 0 && !ex.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE)
         val isNav = cat == "navigation"
 
-        if (chrono && ongoing && Prefs.bool("fLive") && Prefs.bool("fTimer")) {
+        val tk = if (Prefs.bool("fTrack")) classify(pkg, title, text) else null
+        val trackedApp = pkg in Prefs.strSet("liveApps") || pkg in Prefs.strSet("notifApps")
+
+        if (tk != null && ongoing && (trackedApp || !isNav) && !chrono && Prefs.bool("fLive")) {
+            live(key, n, pkg, title, text, initial, 58, tk.icon, hasProg, pMax, ex.getInt(Notification.EXTRA_PROGRESS, 0), false, tk.accent)
+        } else if (tk != null && !ongoing && !initial && trackedApp) {
+            val e = IslandEvent(key, Kind.MESSAGE)
+            fill(e, n, pkg, title, text)
+            e.iconRes = tk.icon
+            e.accent = tk.accent
+            e.priority = 40
+            e.ttlMs = 8000
+            IslandRuntime.post(e)
+        } else if (chrono && ongoing && Prefs.bool("fLive") && Prefs.bool("fTimer")) {
             live(key, n, pkg, title, text, initial, 55, R.drawable.ic_timer, hasProg, pMax, ex.getInt(Notification.EXTRA_PROGRESS, 0), true)
         } else if (isNav && Prefs.bool("fLive") && Prefs.bool("fNav")) {
             live(key, n, pkg, title, text, initial, 60, R.drawable.ic_navigation, false, 0, 0, false)
@@ -140,10 +178,11 @@ class HyperNotificationListener : NotificationListenerService() {
 
     private fun live(
         key: String, n: Notification, pkg: String, title: String?, text: String?, initial: Boolean,
-        prio: Int, icon: Int, hasProg: Boolean, max: Int, cur: Int, chrono: Boolean
+        prio: Int, icon: Int, hasProg: Boolean, max: Int, cur: Int, chrono: Boolean, accent: Int = 0
     ) {
         val e = IslandEvent(key, Kind.LIVE)
         fill(e, n, pkg, title, text)
+        if (accent != 0) e.accent = accent
         e.iconRes = icon
         e.sticky = true
         e.priority = prio

@@ -8,9 +8,11 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
+import android.media.AudioRecordingConfiguration
 import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
+import android.os.SystemClock
 import android.app.NotificationManager
 
 class SystemMonitor(private val ctx: Context, private val ctrl: IslandController) {
@@ -50,6 +52,30 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
         }
     }
 
+    private var recStart = 0L
+
+    /** Fires when any app starts/stops using the microphone (configs are anonymized, but the count is visible). */
+    private val recCb = object : AudioManager.AudioRecordingCallback() {
+        override fun onRecordingConfigChanged(configs: MutableList<AudioRecordingConfiguration>?) {
+            if (!Prefs.bool("fRecord")) {
+                if (recStart != 0L) { recStart = 0L; ctrl.remove("rec") }
+                return
+            }
+            val active = !configs.isNullOrEmpty()
+            if (active && recStart == 0L) {
+                recStart = SystemClock.elapsedRealtime()
+                val e = ev("rec", t(R.string.evt_recording), t(R.string.evt_recording_sub), R.drawable.ic_mic, 0xFFFF453A.toInt())
+                e.sticky = true
+                e.priority = 35
+                e.chronoBase = recStart
+                ctrl.post(e)
+            } else if (!active && recStart != 0L) {
+                recStart = 0L
+                ctrl.remove("rec")
+            }
+        }
+    }
+
     fun start() {
         val f = IntentFilter()
         f.addAction(Intent.ACTION_BATTERY_CHANGED)
@@ -64,13 +90,17 @@ class SystemMonitor(private val ctx: Context, private val ctrl: IslandController
         f.addAction(Intent.ACTION_CONFIGURATION_CHANGED)
         registerSys(ctx, receiver, f)
         try { cam?.registerTorchCallback(torchCb, mainHandler) } catch (e: Exception) { }
+        try { am.registerAudioRecordingCallback(recCb, mainHandler) } catch (e: Exception) { }
         updateOrientation()
     }
 
     fun stop() {
         try { ctx.unregisterReceiver(receiver) } catch (e: Exception) { }
         try { cam?.unregisterTorchCallback(torchCb) } catch (e: Exception) { }
+        try { am.unregisterAudioRecordingCallback(recCb) } catch (e: Exception) { }
+        recStart = 0L
         ctrl.remove("torch")
+        ctrl.remove("rec")
     }
 
     /**

@@ -135,4 +135,19 @@
 
     <string name="preview_title">Hyper Island</string>
     <string name="not_available">This screen is not available on your phone</string>
+    <string name="evt_recording">Recording audio</string>
+    <string name="evt_recording_sub">Microphone is in use</string>
+    <string name="voice_recording">Voice recording</string>
+    <string name="service_tracking">Order, parcel, flight and ride tracking</string>
+    <string name="service_tracking_sub">Detected from app notifications</string>
+    <string name="multi_island">Multiple islands</string>
+    <string name="multi_island_sub">Up to 3 at once. Tap a side bubble to switch, double-tap the island to pin it</string>
+    <string name="font">Font</string>
+    <string name="font_default">Default</string>
+    <string name="font_medium">Medium</string>
+    <string name="font_condensed">Narrow</string>
+    <string name="font_serif">Serif</string>
+    <string name="font_mono">Mono</string>
+    <string name="glass_style">Glass style</string>
+    <string name="glass_style_sub">Translucent frosted look with a light edge</string>
 </resources>

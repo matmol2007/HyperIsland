@@ -50,6 +50,10 @@ class IslandController(
     private var tw = -1
     private var th = -1
     private var texp = false
+    private var tex = 0
+    private var focusKey: String? = null      // island the user switched to (tap a side bubble / swipe)
+    private var pinnedKey: String? = null     // pinned island: never dismissed
+    private var secList: List<IslandEvent> = emptyList()
     // Extra room so spring overshoot and inner padding never clip titles/controls
     private val slack = dp(40)
 
@@ -113,6 +117,7 @@ class IslandController(
     fun restore(list: List<IslandEvent>) { for (e in list) { sticky[e.key] = e }; refresh() }
 
     fun post(e: IslandEvent) {
+        if (e.key == pinnedKey) e.sticky = true
         if (e.sticky) {
             val isNew = !sticky.containsKey(e.key)
             sticky[e.key] = e
@@ -135,6 +140,8 @@ class IslandController(
     fun remove(key: String) {
         sticky.remove(key)
         dismissed.remove(key)
+        if (pinnedKey == key) pinnedKey = null
+        if (focusKey == key) focusKey = null
         if (popup?.key == key) {
             popup = null
             mainHandler.removeCallbacks(popupEnd)
@@ -167,14 +174,22 @@ class IslandController(
 
     private fun refresh(instant: Boolean = false) {
         val suppress = !Prefs.bool("enabled") || (landscape && Prefs.bool("hideLand")) || appHidden
+        val live = sticky.values.filter { it.key !in dismissed }
         val top: IslandEvent? = if (suppress) null
-        else popup ?: sticky.values.filter { it.key !in dismissed }.maxByOrNull { it.priority }
+        else popup
+            ?: focusKey?.let { k -> live.firstOrNull { it.key == k } }
+            ?: pinnedKey?.let { k -> live.firstOrNull { it.key == k } }
+            ?: live.maxByOrNull { it.priority }
         if (top == null) {
             shown = null
+            secList = emptyList()
             hide()
             return
         }
         shown = top
+        secList = if (popup == null && Prefs.bool("multi"))
+            live.filter { it.key != top.key }.sortedByDescending { it.priority }.take(2)
+        else emptyList()
         showEvent(top, popup != null, instant)
     }
 
@@ -191,8 +206,12 @@ class IslandController(
             h = dp(Prefs.int("compactH"))
             r = h / 2f
         }
+        // room for the side bubbles (symmetric, so the pill stays centered on the camera)
+        val extra = if (!exp && secList.isNotEmpty()) 2 * (dp(Prefs.int("compactH")) + dp(6)) else 0
+        view.setSecondary(if (exp) emptyList() else secList)
+        view.pinned = e.key == pinnedKey
         if (!attached) {
-            lp.width = w + slack
+            lp.width = w + extra + slack
             lp.height = h + slack
             pillW = dp(Prefs.int("compactW")) * 0.5f
             pillH = dp(Prefs.int("compactH")) * 0.5f
@@ -207,14 +226,15 @@ class IslandController(
         view.animate().cancel()
         if (view.alpha < 1f) view.animate().alpha(1f).setDuration(160).start()
         if (exp && !texp && Prefs.bool("haptic")) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-        go(w, h, r, exp, instant)
+        go(w, h, r, exp, instant, extra)
     }
 
     private fun hide() {
         if (!attached) return
         val w = (dp(Prefs.int("compactW")) * 0.5f).toInt()
         val h = (dp(Prefs.int("compactH")) * 0.5f).toInt()
-        go(w, h, h / 2f, false, false)
+        view.setSecondary(emptyList())
+        go(w, h, h / 2f, false, false, 0)
         view.animate().cancel()
         view.animate().alpha(0f).setDuration(220).withEndAction {
             if (shown == null) removeWindow()
@@ -235,20 +255,20 @@ class IslandController(
         view.setPill(w, h, r, a)
     }
 
-    private fun go(w: Int, h: Int, r: Float, exp: Boolean, instant: Boolean) {
-        if (!instant && w == tw && h == th && exp == texp) return
-        tw = w; th = h; texp = exp
+    private fun go(w: Int, h: Int, r: Float, exp: Boolean, instant: Boolean, extra: Int = 0) {
+        if (!instant && w == tw && h == th && exp == texp && extra == tex) return
+        tw = w; th = h; texp = exp; tex = extra
         animator?.cancel()
         val a1 = if (exp) 1f else 0f
         if (instant || !attached) {
-            setWindow(w + slack, h + slack)
+            setWindow(w + extra + slack, h + slack)
             setPill(w.toFloat(), h.toFloat(), r, a1)
             // After settle, shrink window to content + small margin so nothing clips
-            setWindow(w + dp(8), h + dp(8))
+            setWindow(w + extra + dp(8), h + dp(8))
             return
         }
         // Grow window with slack during spring; settle to content size at the end
-        setWindow(maxOf(lp.width, w + slack), maxOf(lp.height, h + slack))
+        setWindow(maxOf(lp.width, w + extra + slack), maxOf(lp.height, h + slack))
         val w0 = pillW
         val h0 = pillH
         val r0 = pillR
@@ -268,7 +288,7 @@ class IslandController(
             override fun onAnimationEnd(animation: Animator) {
                 if (cancelled) return
                 setPill(w.toFloat(), h.toFloat(), r, a1)
-                setWindow(w + dp(8), h + dp(8))
+                setWindow(w + extra + dp(8), h + dp(8))
             }
         })
         animator = va
@@ -323,7 +343,7 @@ class IslandController(
 
     override fun onSwipeUp() {
         val e = shown ?: return
-        if (e.sticky && e.kind != Kind.CALL && popup == null) dismissed.add(e.key)
+        if (e.sticky && e.kind != Kind.CALL && popup == null && e.key != pinnedKey) dismissed.add(e.key)
         collapse()
     }
 
@@ -332,8 +352,47 @@ class IslandController(
         if (popup == null) expand(e, 7000)
     }
 
+    /** Double tap: pin / unpin the island (a pinned island is never swiped away or timed out). */
+    override fun onDoubleTap() {
+        val e = shown ?: return
+        if (pinnedKey == e.key) {
+            pinnedKey = null
+        } else {
+            pinnedKey = e.key
+            focusKey = e.key
+            e.sticky = true
+            sticky[e.key] = e
+            dismissed.remove(e.key)
+            if (popup?.key == e.key) mainHandler.removeCallbacks(popupEnd)
+        }
+        if (Prefs.bool("haptic")) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        refresh()
+    }
+
+    /** Quick switch: tap a side bubble to bring that island to the middle. */
+    override fun onSecondaryTap(index: Int) {
+        val k = secList.getOrNull(index)?.key ?: return
+        focusKey = k
+        if (Prefs.bool("haptic")) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        refresh()
+    }
+
+    private fun cycle(next: Boolean) {
+        val list = sticky.values.filter { it.key !in dismissed }.sortedByDescending { it.priority }
+        if (list.size < 2) return
+        val idx = list.indexOfFirst { it.key == shown?.key }
+        val ni = if (next) (idx + 1) % list.size else (idx - 1 + list.size) % list.size
+        focusKey = list[ni].key
+        if (Prefs.bool("haptic")) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        refresh()
+    }
+
     override fun onSwipeSide(next: Boolean) {
-        val m = shown?.media ?: return
+        val m = shown?.media
+        if (m == null) {
+            if (popup == null && Prefs.bool("multi")) cycle(next)
+            return
+        }
         if (next) m.transportControls.skipToNext() else m.transportControls.skipToPrevious()
         if (Prefs.bool("haptic")) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
     }
