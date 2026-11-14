@@ -523,6 +523,16 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         subTv.visibility = if (e.subtitle.isEmpty()) View.GONE else View.VISIBLE
         subTv.maxLines = if (k == Kind.MESSAGE) 2 else 1
 
+        // The expanded layout must be exactly as tall as the pill for THIS event kind.
+        // It used to stay 196dp (music height) for every kind, so with CENTER_VERTICAL the
+        // content of 96dp pills (stopwatch, message...) sat at ~98dp = on the pill's bottom edge, half clipped.
+        val eh = expandedHeightPx(e)
+        val elp = expanded.layoutParams
+        if (elp != null && elp.height != eh) {
+            elp.height = eh
+            expanded.layoutParams = elp
+        }
+
         val hasDur = music && e.durMs > 0
         pbar.visibility = if (!music && e.progress >= 0f) View.VISIBLE else View.GONE
         seekRow.visibility = if (hasDur) View.VISIBLE else View.GONE
