@@ -67,11 +67,28 @@ class IslandController(
     init {
         lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         lp.title = "HyperIsland"
+        disableWindowMoveAnimation()
         if (Build.VERSION.SDK_INT >= 28) {
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
         view.cb = this
         applyPosition()
+    }
+
+    /**
+     * The window is centered, so every time its width changes its left edge moves, and the
+     * system plays a "move animation" on the whole window surface (decaying slide, ~6 frames).
+     * Our pill is already drawn at its final spot inside the window, so that slide shows up as
+     * the island jumping sideways and wobbling back to center. PRIVATE_FLAG_NO_MOVE_ANIMATION
+     * (0x40) tells WindowManager to snap instead. Hidden API -> reflection, silently ignored if blocked.
+     */
+    private fun disableWindowMoveAnimation() {
+        try {
+            val f = WindowManager.LayoutParams::class.java.getField("privateFlags")
+            f.setInt(lp, f.getInt(lp) or 0x00000040)
+        } catch (t: Throwable) {
+            Log.w("HyperIsland", "NO_MOVE_ANIMATION unavailable: $t")
+        }
     }
 
     fun start() {
