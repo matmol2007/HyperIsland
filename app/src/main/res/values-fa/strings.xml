@@ -135,4 +135,19 @@
 
     <string name="preview_title">هایپر آیلند</string>
     <string name="not_available">این صفحه روی گوشی شما در دسترس نیست</string>
+    <string name="evt_recording">در حال ضبط صدا</string>
+    <string name="evt_recording_sub">میکروفون در حال استفاده است</string>
+    <string name="voice_recording">ضبط صدا</string>
+    <string name="service_tracking">پیگیری سفارش، مرسوله، پرواز و سفر</string>
+    <string name="service_tracking_sub">از روی اعلان برنامه‌ها تشخیص داده می‌شود</string>
+    <string name="multi_island">چند جزیره همزمان</string>
+    <string name="multi_island_sub">تا ۳ جزیره همزمان. برای جابه‌جایی روی حباب کناری بزن و با دوبار ضربه جزیره را پین کن</string>
+    <string name="font">فونت</string>
+    <string name="font_default">پیش‌فرض</string>
+    <string name="font_medium">متوسط</string>
+    <string name="font_condensed">باریک</string>
+    <string name="font_serif">سریف</string>
+    <string name="font_mono">مونو</string>
+    <string name="glass_style">استایل شیشه‌ای</string>
+    <string name="glass_style_sub">ظاهر نیمه‌شفاف و شیشه‌ای با لبه‌ی روشن</string>
 </resources>

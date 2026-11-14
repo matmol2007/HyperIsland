@@ -484,7 +484,12 @@ class MainActivity : Activity() {
             toggle("glow", s(R.string.soft_glow))
             toggle("ambient", s(R.string.ambient_light))
             toggle("dynAccent", s(R.string.dynamic_accent))
+            toggle("glass", s(R.string.glass_style), s(R.string.glass_style_sub))
         }
+        section(s(R.string.font)).segmented(
+            "font", s(R.string.font),
+            listOf(s(R.string.font_default), s(R.string.font_medium), s(R.string.font_condensed), s(R.string.font_serif), s(R.string.font_mono))
+        )
         section(s(R.string.animation)).apply {
             slider("animMs", s(R.string.anim_duration), 200, 800, "ms")
             slider("bounce", s(R.string.bounce), 0, 100, "%")
@@ -505,6 +510,9 @@ class MainActivity : Activity() {
             toggle("fTimer", s(R.string.timers), icon = R.drawable.ic_timer, tint = ORANGE)
             toggle("fNav", s(R.string.navigation), icon = R.drawable.ic_island, tint = TEAL)
             toggle("fAlarm", s(R.string.alarms), icon = R.drawable.ic_timer, tint = RED)
+            toggle("fRecord", s(R.string.voice_recording), icon = R.drawable.ic_mic, tint = RED)
+            toggle("fTrack", s(R.string.service_tracking), s(R.string.service_tracking_sub), R.drawable.ic_package, PURPLE)
+            toggle("multi", s(R.string.multi_island), s(R.string.multi_island_sub), R.drawable.ic_island, TEAL)
         }
         section("").apply {
             toggle("fCharge", s(R.string.charging), icon = R.drawable.ic_battery_charging, tint = GREEN)

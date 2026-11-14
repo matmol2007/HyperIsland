@@ -3,8 +3,10 @@ package com.hyperisland.app
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Outline
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
@@ -34,6 +36,8 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         fun onSwipeUp()
         fun onSwipeDown()
         fun onSwipeSide(next: Boolean)
+        fun onDoubleTap()
+        fun onSecondaryTap(index: Int)
     }
 
     var cb: Callbacks? = null
@@ -58,6 +62,23 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
     private var strokeW = 0f
     private var ambient = true
     private val rect = RectF()
+    private val clipP = Path()
+    private val glassPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = LinearGradient(
+            0f, 0f, 0f, 1f,
+            intArrayOf(0x40FFFFFF, 0x0DFFFFFF, 0x1AFFFFFF), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP
+        )
+    }
+    private var glass = false
+    private var strokeCol = 0
+    private var accentFull = 0
+    var pinned = false
+        set(v) { if (field != v) { field = v; invalidate() } }
+    // extra (secondary) islands drawn as small bubbles beside the main pill
+    private var sec: List<IslandEvent> = emptyList()
+    private val secIcons = ArrayList<Drawable?>()
+    private val secRects = arrayOf(RectF(), RectF())
+    private var secHit = -1
 
     private val compact = LinearLayout(ctx)
     private val cIcon = ImageView(ctx)
@@ -111,6 +132,7 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
     private val gd = GestureDetector(ctx, object : GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent): Boolean = true
         override fun onSingleTapUp(e: MotionEvent): Boolean { cb?.onTap(); return true }
+        override fun onDoubleTap(e: MotionEvent): Boolean { cb?.onDoubleTap(); return true }
         override fun onLongPress(e: MotionEvent) { cb?.onLongPress() }
         override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
             val dx = e2.x - (e1?.x ?: e2.x)
@@ -303,6 +325,57 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         val ea = ((a - 0.3f) / 0.6f).coerceIn(0f, 1f)
         expanded.alpha = ea
         expanded.visibility = if (ea <= 0.01f) View.INVISIBLE else View.VISIBLE
+        updateClip()
+    }
+
+    /** The outline clip would cut off the side bubbles, so it is off only while compact with extra islands. */
+    private fun updateClip() {
+        clipToOutline = !(sec.isNotEmpty() && amount <= 0.01f)
+    }
+
+    fun setSecondary(list: List<IslandEvent>) {
+        val l = list.take(2)
+        if (l.size == sec.size && l.indices.all { sec[it] === l[it] }) return
+        sec = l
+        secIcons.clear()
+        val defAcc = Prefs.int("accent")
+        for (e in l) {
+            var dr: Drawable? = null
+            val av = e.avatar
+            if (av != null) dr = try { av.constantState?.newDrawable()?.mutate() } catch (x: Exception) { null }
+            if (dr == null) {
+                dr = try { context.getDrawable(e.iconRes)?.mutate() } catch (x: Exception) { null }
+                dr?.setTint(if (e.accent != 0) e.accent else defAcc)
+            }
+            secIcons.add(dr)
+        }
+        updateClip()
+        invalidate()
+    }
+
+    private fun drawSecondary(c: Canvas) {
+        if (sec.isEmpty() || amount > 0.01f) return
+        val d = ph
+        val r = d / 2f
+        val gap = dpF(6f)
+        val cx = width / 2f
+        for (i in sec.indices) {
+            val centerX = if (i == 0) cx + pw / 2f + gap + r else cx - pw / 2f - gap - r
+            secRects[i].set(centerX - r, 0f, centerX + r, d)
+            c.drawCircle(centerX, r, r, bgPaint)
+            if (strokeW > 0f) {
+                val h = strokeW / 2f
+                strokePaint.strokeWidth = strokeW
+                strokePaint.color = strokeCol
+                c.drawCircle(centerX, r, r - h, strokePaint)
+            }
+            val dr = secIcons.getOrNull(i) ?: continue
+            val isz = (d * 0.56f).toInt()
+            val ix = (centerX - isz / 2f).toInt()
+            val iy = (r - isz / 2f).toInt()
+            dr.setBounds(ix, iy, ix + isz, iy + isz)
+            dr.draw(c)
+        }
     }
 
     override fun dispatchDraw(c: Canvas) {
@@ -310,20 +383,39 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         rect.set(l, 0f, l + pw, ph)
         c.drawRoundRect(rect, pr, pr, bgPaint)
         val gs = glowShader
-        if (ambient && gs != null) {
-            glowPaint.shader = gs
-            glowPaint.alpha = ((0.45f + 0.55f * amount.coerceIn(0f, 1f)) * 255f).toInt()
+        val useGlow = ambient && gs != null
+        if (useGlow || glass) {
+            clipP.reset()
+            clipP.addRoundRect(rect, pr, pr, Path.Direction.CW)
             c.save()
-            c.translate(l, 0f)
-            c.drawRect(0f, 0f, pw, ph, glowPaint)
+            c.clipPath(clipP)
+            if (glass) {
+                c.save()
+                c.translate(l, 0f)
+                c.scale(1f, ph)
+                c.drawRect(0f, 0f, pw, 1f, glassPaint)
+                c.restore()
+            }
+            if (useGlow) {
+                glowPaint.shader = gs
+                glowPaint.alpha = ((0.45f + 0.55f * amount.coerceIn(0f, 1f)) * 255f).toInt()
+                c.save()
+                c.translate(l, 0f)
+                c.drawRect(0f, 0f, pw, ph, glowPaint)
+                c.restore()
+            }
             c.restore()
         }
-        if (strokeW > 0f) {
-            val h = strokeW / 2f
+        val sw = if (pinned && strokeW < dpF(1.5f)) dpF(1.5f) else strokeW
+        if (sw > 0f) {
+            val h = sw / 2f
+            strokePaint.strokeWidth = sw
+            strokePaint.color = if (pinned) accentFull else strokeCol
             rect.set(l + h, h, l + pw - h, ph - h)
             c.drawRoundRect(rect, maxOf(0f, pr - h), maxOf(0f, pr - h), strokePaint)
         }
         super.dispatchDraw(c)
+        drawSecondary(c)
     }
 
     private fun updateGlow(acc: Int) {
@@ -337,10 +429,29 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            secHit = -1
+            if (sec.isNotEmpty() && amount <= 0.01f) {
+                val sp = dpF(4f)
+                for (i in sec.indices) {
+                    val r = secRects[i]
+                    if (ev.x >= r.left - sp && ev.x <= r.right + sp && ev.y >= -sp && ev.y <= r.bottom + sp) secHit = i
+                }
+            }
+            if (secHit >= 0) return true
             val pad = dpF(12f)
             val l = (width - pw) / 2f - pad
             val r = (width + pw) / 2f + pad
             touchInside = ev.x >= l && ev.x <= r && ev.y >= -pad && ev.y <= ph + pad
+        }
+        if (secHit >= 0) {
+            if (ev.actionMasked == MotionEvent.ACTION_UP) {
+                val i = secHit
+                secHit = -1
+                cb?.onSecondaryTap(i)
+            } else if (ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                secHit = -1
+            }
+            return true
         }
         if (!touchInside) return false
         if (amount > 0.4f && super.onTouchEvent(ev)) return true
@@ -376,11 +487,15 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         val acc = Prefs.int("accent")
         txtColor = Prefs.int("text")
         bgColorOpaque = Prefs.int("bg") or 0xFF000000.toInt()
-        bgPaint.color = Prefs.int("bg").withAlpha(Prefs.int("opacity") * 255 / 100)
+        glass = Prefs.bool("glass")
+        val op = if (glass) minOf(Prefs.int("opacity"), 72) else Prefs.int("opacity")
+        bgPaint.color = Prefs.int("bg").withAlpha(op * 255 / 100)
         ambient = Prefs.bool("ambient")
-        strokeW = if (Prefs.bool("glow")) dpF(1.5f) else 0f
+        accentFull = acc.withAlpha(255)
+        strokeW = if (glass) dpF(1.2f) else if (Prefs.bool("glow")) dpF(1.5f) else 0f
         strokePaint.strokeWidth = strokeW
-        strokePaint.color = acc.withAlpha(170)
+        strokeCol = if (glass) 0x59FFFFFF else acc.withAlpha(170)
+        strokePaint.color = strokeCol
         layoutDirection = when (Prefs.int("layoutDir")) {
             1 -> View.LAYOUT_DIRECTION_LTR
             2 -> View.LAYOUT_DIRECTION_RTL
@@ -418,6 +533,18 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         rightTv.setTextColor(txtColor)
         cText.setTextColor(txtColor)
         eq.layoutParams = FrameLayout.LayoutParams(dp(26 * s), dp(20 * s), Gravity.CENTER)
+
+        val fam = when (Prefs.int("font")) {
+            1 -> Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            2 -> Typeface.create("sans-serif-condensed", Typeface.NORMAL)
+            3 -> Typeface.SERIF
+            4 -> Typeface.MONOSPACE
+            else -> Typeface.DEFAULT
+        }
+        val boldTf = if (Prefs.int("font") == 1) fam else Typeface.create(fam, Typeface.BOLD)
+        val regTf = Typeface.create(fam, Typeface.NORMAL)
+        for (t in listOf(titleTv, rightTv, cText, declineLabel, answerLabel)) t.typeface = boldTf
+        for (t in listOf(subTv, elapsedTv, durTv)) t.typeface = regTf
 
         val pbLp = LinearLayout.LayoutParams(-1, dp(4 * s))
         pbLp.topMargin = dp(12 * s)
@@ -522,6 +649,16 @@ class IslandView(ctx: Context) : FrameLayout(ctx) {
         if (e.subtitle != lastSub) { lastSub = e.subtitle; subTv.text = e.subtitle }
         subTv.visibility = if (e.subtitle.isEmpty()) View.GONE else View.VISIBLE
         subTv.maxLines = if (k == Kind.MESSAGE) 2 else 1
+
+        // The expanded layout must be exactly as tall as the pill for THIS event kind.
+        // It used to stay 196dp (music height) for every kind, so with CENTER_VERTICAL the
+        // content of 96dp pills (stopwatch, message...) sat at ~98dp = on the pill's bottom edge, half clipped.
+        val eh = expandedHeightPx(e)
+        val elp = expanded.layoutParams
+        if (elp != null && elp.height != eh) {
+            elp.height = eh
+            expanded.layoutParams = elp
+        }
 
         val hasDur = music && e.durMs > 0
         pbar.visibility = if (!music && e.progress >= 0f) View.VISIBLE else View.GONE
